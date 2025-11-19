@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Finanças Pessoais</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container">
+            <a class="navbar-brand" href="#">Finanças Pessoais</a>
+            <div class="navbar-nav">
+                <a class="nav-link" href="#" onclick="showSection('dashboard')">Dashboard</a>
+                <a class="nav-link" href="#" onclick="showSection('banks')">Bancos</a>
+                <a class="nav-link" href="#" onclick="showSection('cards')">Cartões</a>
+                <a class="nav-link" href="#" onclick="showSection('transactions')">Transações</a>
+                <a class="nav-link" href="#" onclick="showSection('transfers')">Transferências</a>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container mt-4">
+        
+        <!-- Dashboard -->
+        <div id="dashboard-section" class="section">
+            <h2>Dashboard</h2>
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Resumo Financeiro</h5>
+                        </div>
+                        <div class="card-body" id="summary-section">
+                            <!-- Conteúdo carregado via JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Gastos Mensais</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <select class="form-select" id="dash-filter-bank">
+                                        <option value="">Todos os bancos</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <select class="form-select" id="dash-filter-card">
+                                        <option value="">Todos os cartões</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <button class="btn btn-primary" onclick="applyDashboardFilters()">Aplicar</button>
+                                    <button class="btn btn-outline-secondary" onclick="clearDashboardFilters()">Limpar</button>
+                                </div>
+                            </div>
+                            <canvas id="expenseChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Bancos -->
+        <div id="banks-section" class="section" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Bancos</h2>
+                <button class="btn btn-primary" onclick="showBankForm()">Novo Banco</button>
+            </div>
+            
+            <div id="bank-form-section" style="display: none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 id="bank-form-title">Adicionar Banco</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="bank-form">
+                            <input type="hidden" id="bank-id">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="bank-name" class="form-label">Nome do Banco</label>
+                                        <input type="text" class="form-control" id="bank-name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="initial-balance" class="form-label">Saldo Inicial</label>
+                                        <input type="number" step="0.01" class="form-control" id="initial-balance" value="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success me-2">Salvar</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideBankForm()">Cancelar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <div id="banks-list">
+                        <!-- Conteúdo carregado via JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cartões -->
+        <div id="cards-section" class="section" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Cartões</h2>
+                <button class="btn btn-primary" onclick="showCardForm()">Novo Cartão</button>
+            </div>
+            
+            <div id="card-form-section" style="display: none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 id="card-form-title">Adicionar Cartão</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="card-form">
+                            <input type="hidden" id="card-id">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="card-bank-select" class="form-label">Banco</label>
+                                        <select class="form-select" id="card-bank-select" required>
+                                            <option value="">Selecione um banco</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="card-name" class="form-label">Nome do Cartão</label>
+                                        <input type="text" class="form-control" id="card-name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="card-type" class="form-label">Tipo</label>
+                                        <select class="form-select" id="card-type" required>
+                                            <option value="credit">Crédito</option>
+                                            <option value="debit">Débito</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="card-limit" class="form-label">Limite</label>
+                                        <input type="number" step="0.01" class="form-control" id="card-limit">
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="card-due-day" class="form-label">Vencimento</label>
+                                        <input type="number" min="1" max="31" class="form-control" id="card-due-day">
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success me-2">Salvar</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideCardForm()">Cancelar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <div id="cards-list">
+                        <!-- Conteúdo carregado via JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transações -->
+        <div id="transactions-section" class="section" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Compras</h2>
+                <button class="btn btn-primary" onclick="showTransactionForm()">Nova Compra</button>
+            </div>
+            
+            <!-- Filtros -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6>Filtros</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="filter-date-from" class="form-label">Data Inicial</label>
+                            <input type="date" class="form-control" id="filter-date-from">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-date-to" class="form-label">Data Final</label>
+                            <input type="date" class="form-control" id="filter-date-to">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="filter-bank" class="form-label">Banco</label>
+                            <select class="form-select" id="filter-bank">
+                                <option value="">Todos os bancos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end gap-2">
+                            <button class="btn btn-primary" onclick="applyFilters()">Aplicar Filtros</button>
+                            <button class="btn btn-outline-secondary" onclick="clearFilters()">Limpar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Ações em Lote -->
+            <div class="card mb-4" id="bulk-actions" style="display: none;">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span id="selected-count">0 transações selecionadas</span>
+                        <div>
+                            <button class="btn btn-success btn-sm" onclick="bulkUpdateStatus(true)">Marcar como Pagas</button>
+                            <button class="btn btn-warning btn-sm" onclick="bulkUpdateStatus(false)">Marcar como Pendentes</button>
+                            <button class="btn btn-outline-secondary btn-sm" onclick="clearSelection()">Limpar Seleção</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="transaction-form-section" style="display: none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 id="transaction-form-title">Nova Compra</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="transaction-form">
+                            <input type="hidden" id="transaction-id">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="card-select" class="form-label">Cartão</label>
+                                        <select class="form-select" id="card-select" required onchange="toggleInstallments()">
+                                            <option value="">Selecione um cartão</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="amount" class="form-label">Valor Total</label>
+                                        <input type="number" step="0.01" class="form-control" id="amount" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2" id="installments-field" style="display: none;">
+                                    <div class="mb-3">
+                                        <label for="installments" class="form-label">Parcelas</label>
+                                        <input type="number" min="1" max="60" class="form-control" id="installments" value="1" placeholder="1">
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="description" class="form-label">Descrição</label>
+                                        <input type="text" class="form-control" id="description" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="transaction-date" class="form-label">Data da Compra</label>
+                                        <input type="date" class="form-control" id="transaction-date" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success me-2">Salvar</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideTransactionForm()">Cancelar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>
+                                        <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
+                                    </th>
+                                    <th>Data</th>
+                                    <th>Banco</th>
+                                    <th>Cartão</th>
+                                    <th>Descrição</th>
+                                    <th>Valor</th>
+                                    <th>Parcela</th>
+                                    <th>Status</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transactions-list">
+                                <!-- Conteúdo carregado via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Transferências -->
+        <div id="transfers-section" class="section" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Transferências</h2>
+                <button class="btn btn-primary" onclick="showTransferForm()">Nova Transferência</button>
+            </div>
+            
+            <div id="transfer-form-section" style="display: none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Nova Transferência</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="transfer-form">
+                            <div class="row">
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="from-bank" class="form-label">Banco Origem</label>
+                                        <select class="form-select" id="from-bank" required>
+                                            <option value="">Selecione o banco</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="mb-3">
+                                        <label for="to-bank" class="form-label">Banco Destino</label>
+                                        <select class="form-select" id="to-bank" required>
+                                            <option value="">Selecione o banco</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="transfer-amount" class="form-label">Valor</label>
+                                        <input type="number" step="0.01" class="form-control" id="transfer-amount" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="transfer-date" class="form-label">Data</label>
+                                        <input type="date" class="form-control" id="transfer-date" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="transfer-description" class="form-label">Descrição</label>
+                                        <input type="text" class="form-control" id="transfer-description" required>
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success me-2">Transferir</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideTransferForm()">Cancelar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h5>Histórico de Transferências</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-striped">
+                            <thead>
+                                <tr>
+                                    <th>Data</th>
+                                    <th>Origem</th>
+                                    <th>Destino</th>
+                                    <th>Descrição</th>
+                                    <th>Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transfers-list">
+                                <!-- Conteúdo carregado via JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+
+    <script>
+        window.selectedTransactions = new Set();
+        // Função showSection removida - usando a do app.js
+        function showBankForm(){document.getElementById('bank-form-section').style.display='block';}
+        function hideBankForm(){document.getElementById('bank-form-section').style.display='none';}
+        function showCardForm(){document.getElementById('card-form-section').style.display='block';document.getElementById('card-form-title').textContent='Adicionar Cartão';document.getElementById('card-form').reset();}
+        function hideCardForm(){document.getElementById('card-form-section').style.display='none';}
+        function showTransactionForm(){document.getElementById('transaction-form-section').style.display='block';document.getElementById('transaction-form-title').textContent='Nova Compra';document.getElementById('transaction-form').reset();document.getElementById('transaction-date').value=new Date().toISOString().split('T')[0];}
+        function hideTransactionForm(){document.getElementById('transaction-form-section').style.display='none';}
+        function toggleInstallments(){const select=document.getElementById('card-select');const field=document.getElementById('installments-field');if(select.value){fetch('/api/cards/').then(r=>r.json()).then(cards=>{const card=cards.find(c=>c.id==select.value);field.style.display=card&&card.type==='credit'?'block':'none';});}else{field.style.display='none';}}
+        function showTransferForm(){document.getElementById('transfer-form-section').style.display='block';}
+        function hideTransferForm(){document.getElementById('transfer-form-section').style.display='none';}
+        function editBank(id){fetch('/api/banks/'+id).then(r=>r.json()).then(b=>{document.getElementById('bank-form-section').style.display='block';document.getElementById('bank-name').value=b.name;document.getElementById('initial-balance').value=b.initial_balance;});}
+        function deleteBank(id){if(confirm('Excluir banco?'))fetch('/api/banks/'+id,{method:'DELETE'}).then(()=>location.reload());}
+        function editCard(id){fetch('/api/cards/').then(r=>r.json()).then(cards=>{const card=cards.find(c=>c.id==id);if(card){document.getElementById('card-form-section').style.display='block';document.getElementById('card-form-title').textContent='Editar Cartão';document.getElementById('card-id').value=card.id;document.getElementById('card-bank-select').value=card.bank_id;document.getElementById('card-name').value=card.name;document.getElementById('card-type').value=card.type;document.getElementById('card-limit').value=card.limit_amount||'';document.getElementById('card-due-day').value=card.due_day||'';}});}
+        function deleteCard(id){if(confirm('Excluir cartão?'))fetch('/api/cards/'+id,{method:'DELETE'}).then(()=>location.reload());}
+        function editTransaction(id){fetch('/api/transactions/').then(r=>r.json()).then(transactions=>{const t=transactions.find(tr=>tr.id==id);if(t){document.getElementById('transaction-form-section').style.display='block';document.getElementById('transaction-form-title').textContent='Editar Compra';document.getElementById('transaction-id').value=t.id;document.getElementById('card-select').value=t.card_id;document.getElementById('amount').value=t.amount;document.getElementById('description').value=t.description;document.getElementById('transaction-date').value=t.date;toggleInstallments();}});}
+        function deleteTransaction(id){if(confirm('Excluir compra?'))fetch('/api/transactions/'+id,{method:'DELETE'}).then(()=>loadData());}
+        function togglePayment(id){fetch('/api/transactions/'+id+'/toggle-payment',{method:'PATCH'}).then(()=>loadData());}
+        function loadTransactionsData(){console.log('loadTransactionsData INICIADA');const params=new URLSearchParams();const dateFrom=document.getElementById('filter-date-from')?.value;const dateTo=document.getElementById('filter-date-to')?.value;const bankId=document.getElementById('filter-bank')?.value;if(dateFrom)params.append('date_from',dateFrom);if(dateTo)params.append('date_to',dateTo);if(bankId)params.append('bank_id',bankId);const url='/api/transactions/'+(params.toString()?'?'+params.toString():'');console.log('Fazendo fetch para:',url);fetch(url).then(r=>r.json()).then(data=>{console.log('Dados recebidos:',data);const tbody=document.getElementById('transactions-list');console.log('tbody encontrado:',tbody);if(!tbody){console.error('tbody não encontrado!');return;}tbody.innerHTML='';if(data.length===0){tbody.innerHTML='<tr><td colspan="9">Nenhuma transação encontrada</td></tr>';return;}data.forEach(t=>{const row=document.createElement('tr');row.innerHTML='<td><input type="checkbox" class="transaction-checkbox" value="'+t.id+'" onchange="toggleTransactionSelection('+t.id+')"></td><td>'+new Date(t.date).toLocaleDateString('pt-BR')+'</td><td>'+t.bank_name+'</td><td>'+t.card_name+'</td><td>'+t.description+'</td><td>R$ '+t.amount.toFixed(2)+'</td><td>-</td><td>'+(t.is_paid?'Pago':'Pendente')+'</td><td><button class="btn btn-sm btn-outline-success" onclick="togglePayment('+t.id+')" title="Alterar Status">✓</button> <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction('+t.id+')" title="Excluir">🗑️</button></td>';tbody.appendChild(row);});console.log('Tabela atualizada!');}).catch(e=>console.error('Erro:',e));}
+        function applyFiltersInline(){console.log('Aplicando filtros');loadTransactionsData();}
+        function clearFiltersInline(){console.log('clearFiltersInline chamada');document.getElementById('filter-date-from').value='';document.getElementById('filter-date-to').value='';document.getElementById('filter-bank').value='';loadTransactionsData();loadTransactionFilters();}
+        function toggleSelectAllInline(){const selectAll=document.getElementById('select-all');const checkboxes=document.querySelectorAll('.transaction-checkbox');if(selectAll.checked){checkboxes.forEach(cb=>{cb.checked=true;const id=parseInt(cb.value);if(window.selectedTransactions)window.selectedTransactions.add(id);});}else{checkboxes.forEach(cb=>{cb.checked=false;});if(window.selectedTransactions)window.selectedTransactions.clear();}if(window.updateSelectionCounter)window.updateSelectionCounter();}
+        function toggleTransactionSelection(id){const checkbox=document.querySelector('input[value="'+id+'"]');if(window.selectedTransactions.has(id)){window.selectedTransactions.delete(id);}else{window.selectedTransactions.add(id);}updateSelectionCounter();}
+        function bulkUpdateStatus(isPaid){if(window.selectedTransactions.size===0){alert('Nenhuma transação selecionada');return;}const action=isPaid?'marcar como pagas':'marcar como pendentes';if(!confirm('Deseja '+action+' '+window.selectedTransactions.size+' transação'+(window.selectedTransactions.size!==1?'ões':'')+'?'))return;fetch('/api/transactions/bulk-update-status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({transaction_ids:Array.from(window.selectedTransactions),is_paid:isPaid})}).then(r=>{if(r.ok){clearSelection();loadTransactionsData();alert('Status atualizado com sucesso!');}else{alert('Erro ao atualizar status');}}).catch(e=>{console.error('Erro:',e);alert('Erro ao atualizar status');});}
+        function clearSelection(){window.selectedTransactions.clear();document.querySelectorAll('.transaction-checkbox').forEach(cb=>cb.checked=false);const selectAll=document.getElementById('select-all');if(selectAll){selectAll.checked=false;selectAll.indeterminate=false;}updateSelectionCounter();}
+        function updateSelectionCounter(){const count=window.selectedTransactions?window.selectedTransactions.size:0;const counter=document.getElementById('selected-count');const bulkActions=document.getElementById('bulk-actions');if(counter)counter.textContent=count+' transação'+(count!==1?'ões':'')+' selecionada'+(count!==1?'s':'');if(bulkActions)bulkActions.style.display=count>0?'block':'none';}
+        window.updateSelectionCounter=updateSelectionCounter;
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/app.js?v=2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

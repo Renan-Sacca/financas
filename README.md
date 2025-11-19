@@ -1,1 +1,156 @@
-# financas
+# Sistema de Controle de Finanças Pessoais
+
+Sistema completo para controle de finanças pessoais com backend FastAPI, banco SQLite e frontend HTML/Bootstrap/JavaScript.
+
+## Funcionalidades
+
+- ✅ Cadastro de bancos com saldo inicial
+- ✅ Criação de cartões (crédito/débito) vinculados aos bancos
+- ✅ Registro de transações (despesas, pagamentos, reembolsos)
+- ✅ Cálculo automático de saldos por banco e total geral
+- ✅ Histórico completo de transações com filtros
+- ✅ Interface responsiva com Bootstrap
+- ✅ API REST documentada (OpenAPI/Swagger)
+
+## Tecnologias
+
+- **Backend**: FastAPI + SQLModel + SQLite
+- **Frontend**: HTML5 + Bootstrap 5 + JavaScript (Fetch API)
+- **Containerização**: Docker + Docker Compose
+
+## Como executar
+
+### Com Docker (Recomendado)
+
+```bash
+# Clonar/baixar o projeto
+cd finance-app
+
+# Construir e executar
+docker-compose up --build
+
+# Acessar a aplicação
+# Frontend: http://localhost:8000
+# API Docs: http://localhost:8000/docs
+```
+
+### Desenvolvimento local
+
+```bash
+# Instalar dependências
+pip install -r requirements.txt
+
+# Executar aplicação
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+## Estrutura do Projeto
+
+```
+finance-app/
+├── app/                    # Backend FastAPI
+│   ├── main.py            # Aplicação principal
+│   ├── models.py          # Modelos SQLModel
+│   ├── schemas.py         # Schemas Pydantic
+│   ├── crud.py            # Operações CRUD
+│   ├── database.py        # Configuração do banco
+│   └── api/               # Rotas da API
+├── frontend/              # Frontend
+│   ├── static/           # CSS e JavaScript
+│   └── templates/        # HTML
+├── data/                 # Banco SQLite (criado automaticamente)
+├── Dockerfile
+├── docker-compose.yml
+└── requirements.txt
+```
+
+## API Endpoints
+
+### Bancos
+- `GET /api/banks/` - Listar bancos
+- `POST /api/banks/` - Criar banco
+- `GET /api/banks/{id}` - Detalhes do banco
+- `DELETE /api/banks/{id}` - Excluir banco
+- `POST /api/banks/{id}/cards` - Adicionar cartão ao banco
+
+### Cartões
+- `GET /api/cards/` - Listar cartões
+
+### Transações
+- `POST /api/transactions/` - Criar transação
+- `GET /api/transactions/` - Listar transações
+
+### Resumo
+- `GET /api/summary/` - Resumo financeiro
+
+## Exemplos de Uso (curl)
+
+### Criar banco
+```bash
+curl -X POST "http://localhost:8000/api/banks/" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Banco do Brasil", "initial_balance": 1000.0}'
+```
+
+### Adicionar cartão
+```bash
+curl -X POST "http://localhost:8000/api/banks/1/cards" \
+  -H "Content-Type: application/json" \
+  -d '{"name": "Visa Crédito", "type": "credit"}'
+```
+
+### Registrar despesa
+```bash
+curl -X POST "http://localhost:8000/api/transactions/" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "card_id": 1,
+    "amount": 150.50,
+    "type": "expense",
+    "description": "Compras supermercado",
+    "date": "2024-01-15"
+  }'
+```
+
+### Obter resumo
+```bash
+curl "http://localhost:8000/api/summary/"
+```
+
+## Lógica de Saldo
+
+O saldo atual de cada banco é calculado como:
+```
+Saldo Atual = Saldo Inicial + Pagamentos + Reembolsos - Despesas
+```
+
+- **Despesas**: Reduzem o saldo do banco
+- **Pagamentos/Reembolsos**: Aumentam o saldo do banco
+- Cartões de crédito e débito afetam o saldo do banco igualmente (simplificação para MVP)
+
+## Dados de Teste
+
+Após executar a aplicação, você pode:
+
+1. Criar um banco (ex: "Nubank") com saldo inicial R$ 500,00
+2. Adicionar cartões (ex: "Nubank Crédito" e "Nubank Débito")
+3. Registrar algumas transações de teste
+4. Verificar o resumo financeiro atualizado
+
+## Desenvolvimento
+
+Para adicionar novas funcionalidades:
+
+1. **Modelos**: Editar `app/models.py`
+2. **API**: Adicionar rotas em `app/api/`
+3. **Frontend**: Modificar `frontend/templates/index.html` e `frontend/static/js/app.js`
+
+## Melhorias Futuras
+
+- [ ] Autenticação JWT
+- [ ] Filtros avançados por data
+- [ ] Exportação CSV
+- [ ] Gráficos interativos
+- [ ] Categorização de gastos
+- [ ] Metas de economia
+- [ ] Notificações de limite
