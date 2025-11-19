@@ -46,23 +46,92 @@
                             <h5>Gastos Mensais</h5>
                         </div>
                         <div class="card-body">
-                            <div class="row mb-3">
-                                <div class="col-md-3">
+                            <div class="row mb-3 dashboard-filters">
+                                <div class="col-md-2">
+                                    <label for="dash-filter-bank" class="form-label">Banco</label>
                                     <select class="form-select" id="dash-filter-bank">
                                         <option value="">Todos os bancos</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
+                                    <label for="dash-filter-card" class="form-label">Cartão</label>
                                     <select class="form-select" id="dash-filter-card">
                                         <option value="">Todos os cartões</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-2">
+                                    <label for="dash-filter-year" class="form-label">Ano</label>
+                                    <select class="form-select" id="dash-filter-year">
+                                        <option value="">Todos os anos</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label for="dash-filter-month" class="form-label">Mês</label>
+                                    <select class="form-select" id="dash-filter-month">
+                                        <option value="">Todos os meses</option>
+                                        <option value="1">Janeiro</option>
+                                        <option value="2">Fevereiro</option>
+                                        <option value="3">Março</option>
+                                        <option value="4">Abril</option>
+                                        <option value="5">Maio</option>
+                                        <option value="6">Junho</option>
+                                        <option value="7">Julho</option>
+                                        <option value="8">Agosto</option>
+                                        <option value="9">Setembro</option>
+                                        <option value="10">Outubro</option>
+                                        <option value="11">Novembro</option>
+                                        <option value="12">Dezembro</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2 d-flex align-items-end gap-2">
                                     <button class="btn btn-primary" onclick="applyDashboardFilters()">Aplicar</button>
                                     <button class="btn btn-outline-secondary" onclick="clearDashboardFilters()">Limpar</button>
                                 </div>
+                                <div class="col-md-2 d-flex align-items-end justify-content-end">
+                                    <div class="text-end">
+                                        <small class="text-muted">Total do período:</small>
+                                        <div class="h5 text-primary" id="period-total">R$ 0,00</div>
+                                    </div>
+                                </div>
                             </div>
-                            <canvas id="expenseChart" width="400" height="200"></canvas>
+                            <div style="height: 400px;">
+                                <canvas id="expenseChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Gastos por Cartão</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-3">
+                                    <label for="pie-filter-bank" class="form-label">Banco</label>
+                                    <select class="form-select" id="pie-filter-bank">
+                                        <option value="">Todos os bancos</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="pie-filter-date-from" class="form-label">Data Inicial</label>
+                                    <input type="date" class="form-control" id="pie-filter-date-from">
+                                </div>
+                                <div class="col-md-3">
+                                    <label for="pie-filter-date-to" class="form-label">Data Final</label>
+                                    <input type="date" class="form-control" id="pie-filter-date-to">
+                                </div>
+                                <div class="col-md-3 d-flex align-items-end gap-2">
+                                    <button class="btn btn-primary" onclick="applyPieFilters()">Aplicar</button>
+                                    <button class="btn btn-outline-secondary" onclick="clearPieFilters()">Limpar</button>
+                                </div>
+                            </div>
+                            <div style="height: 400px;">
+                                <canvas id="cardPieChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>

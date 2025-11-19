@@ -306,15 +306,15 @@ async function loadSummary() {
         let html = `
             <div class="row">
                 <div class="col-md-8">
-                    <h6>Saldos por Banco:</h6>
+                    <h6 class="mb-3">Saldos por Banco:</h6>
         `;
         
         data.banks.forEach(bank => {
             const balanceClass = bank.balance >= 0 ? 'text-success' : 'text-danger';
             html += `
-                <div class="d-flex justify-content-between">
-                    <span>${bank.bank_name}:</span>
-                    <span class="${balanceClass}">R$ ${bank.balance.toFixed(2)}</span>
+                <div class="bank-balance-item">
+                    <span class="bank-balance-name">${bank.bank_name}</span>
+                    <span class="bank-balance-value ${balanceClass}">R$ ${bank.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
             `;
         });
@@ -322,9 +322,9 @@ async function loadSummary() {
         html += `
                 </div>
                 <div class="col-md-4">
-                    <div class="bg-primary text-white p-3 rounded text-center">
+                    <div class="summary-card">
                         <h6>Total Geral</h6>
-                        <h4>R$ ${data.total_balance.toFixed(2)}</h4>
+                        <h4>R$ ${data.total_balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h4>
                     </div>
                 </div>
             </div>
@@ -550,16 +550,42 @@ async function loadTransactionFilters() {
                 option.textContent = bank.name;
                 dashBankSelect.appendChild(option);
             });
+            
+            // Adicionar evento para filtrar cartões por banco
+            dashBankSelect.addEventListener('change', function() {
+                updateDashboardCardFilter(cards);
+            });
         }
         
-        const dashCardSelect = document.getElementById('dash-filter-card');
-        if (dashCardSelect) {
-            dashCardSelect.innerHTML = '<option value="">Todos os cartões</option>';
-            cards.forEach(card => {
+        // Adicionar evento para controlar filtro de mês baseado no ano
+        const dashYearSelect = document.getElementById('dash-filter-year');
+        const dashMonthSelect = document.getElementById('dash-filter-month');
+        
+        if (dashYearSelect && dashMonthSelect) {
+            dashYearSelect.addEventListener('change', function() {
+                if (!this.value) {
+                    dashMonthSelect.value = '';
+                    dashMonthSelect.disabled = true;
+                } else {
+                    dashMonthSelect.disabled = false;
+                }
+            });
+            
+            // Inicializar estado do filtro de mês
+            dashMonthSelect.disabled = !dashYearSelect.value;
+        }
+        
+        updateDashboardCardFilter(cards);
+        
+        // Carregar bancos para o filtro do gráfico de pizza
+        const pieBankSelect = document.getElementById('pie-filter-bank');
+        if (pieBankSelect) {
+            pieBankSelect.innerHTML = '<option value="">Todos os bancos</option>';
+            banks.forEach(bank => {
                 const option = document.createElement('option');
-                option.value = card.id;
-                option.textContent = card.name;
-                dashCardSelect.appendChild(option);
+                option.value = bank.id;
+                option.textContent = bank.name;
+                pieBankSelect.appendChild(option);
             });
         }
         
@@ -754,7 +780,35 @@ let expenseChart = null;
 
 async function loadDashboard() {
     await loadTransactionFilters();
+    await loadYearFilter();
     await loadExpenseChart();
+    await loadCardPieChart();
+}
+
+async function loadYearFilter() {
+    try {
+        const response = await fetch('/api/transactions/');
+        const transactions = await response.json();
+        
+        const years = new Set();
+        transactions.forEach(t => {
+            const year = new Date(t.date).getFullYear();
+            years.add(year);
+        });
+        
+        const yearSelect = document.getElementById('dash-filter-year');
+        if (yearSelect) {
+            yearSelect.innerHTML = '<option value="">Todos os anos</option>';
+            Array.from(years).sort((a, b) => b - a).forEach(year => {
+                const option = document.createElement('option');
+                option.value = year;
+                option.textContent = year;
+                yearSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao carregar anos:', error);
+    }
 }
 
 async function loadExpenseChart() {
@@ -762,13 +816,71 @@ async function loadExpenseChart() {
         const params = new URLSearchParams();
         const bankId = document.getElementById('dash-filter-bank')?.value;
         const cardId = document.getElementById('dash-filter-card')?.value;
+        const year = document.getElementById('dash-filter-year')?.value;
+        const month = document.getElementById('dash-filter-month')?.value;
+        
+        // Validar se mês foi selecionado sem ano
+        if (month && !year) {
+            alert('Por favor, selecione um ano antes de escolher um mês específico.');
+            document.getElementById('dash-filter-month').value = '';
+            return;
+        }
         
         if (bankId) params.append('bank_id', bankId);
         if (cardId) params.append('card_id', cardId);
+        if (year) params.append('year', year);
+        if (month) params.append('month', month);
         
         const url = '/api/summary/monthly-expenses' + (params.toString() ? '?' + params.toString() : '');
         const response = await fetch(url);
-        const data = await response.json();
+        let data = await response.json();
+        
+        // Determinar se estamos mostrando dias ou meses
+        const showingDays = month && year;
+        const chartTitle = showingDays ? 'Gastos Diários' : 'Gastos Mensais';
+        
+        // Atualizar título e badge
+        const titleElement = document.getElementById('chart-title');
+        const modeElement = document.getElementById('chart-mode');
+        
+        if (titleElement) {
+            titleElement.textContent = chartTitle;
+        }
+        
+        if (modeElement) {
+            if (showingDays) {
+                const monthNames = ['', 'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 
+                                  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+                modeElement.textContent = `${monthNames[parseInt(month)]} ${year}`;
+                modeElement.style.display = 'inline';
+            } else {
+                modeElement.style.display = 'none';
+            }
+        }
+        
+        // Calcular total do período
+        const periodTotal = data.reduce((sum, item) => sum + item.total, 0);
+        const totalElement = document.getElementById('period-total');
+        if (totalElement) {
+            totalElement.textContent = 'R$ ' + periodTotal.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+        }
+        
+        // Verificar se há dados
+        if (data.length === 0) {
+            const ctx = document.getElementById('expenseChart').getContext('2d');
+            
+            if (expenseChart) {
+                expenseChart.destroy();
+            }
+            
+            // Mostrar mensagem de sem dados
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#6c757d';
+            ctx.textAlign = 'center';
+            ctx.fillText('Nenhum gasto encontrado para o período selecionado', ctx.canvas.width / 2, ctx.canvas.height / 2);
+            return;
+        }
         
         const ctx = document.getElementById('expenseChart').getContext('2d');
         
@@ -781,22 +893,42 @@ async function loadExpenseChart() {
             data: {
                 labels: data.map(item => item.month),
                 datasets: [{
-                    label: 'Gastos Mensais',
+                    label: chartTitle + ' (R$)',
                     data: data.map(item => item.total),
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    borderWidth: 1
+                    backgroundColor: showingDays ? 'rgba(255, 99, 132, 0.6)' : 'rgba(54, 162, 235, 0.6)',
+                    borderColor: showingDays ? 'rgba(255, 99, 132, 1)' : 'rgba(54, 162, 235, 1)',
+                    borderWidth: 2,
+                    borderRadius: 4
                 }]
             },
             options: {
                 responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'R$ ' + context.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                            }
+                        }
+                    }
+                },
                 scales: {
                     y: {
                         beginAtZero: true,
                         ticks: {
                             callback: function(value) {
-                                return 'R$ ' + value.toFixed(2);
+                                return 'R$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
                             }
+                        }
+                    },
+                    x: {
+                        ticks: {
+                            maxRotation: 45
                         }
                     }
                 }
@@ -815,10 +947,130 @@ function applyDashboardFilters() {
 function clearDashboardFilters() {
     document.getElementById('dash-filter-bank').value = '';
     document.getElementById('dash-filter-card').value = '';
+    document.getElementById('dash-filter-year').value = '';
+    document.getElementById('dash-filter-month').value = '';
+    
+    // Reabilitar filtro de mês
+    const dashMonthSelect = document.getElementById('dash-filter-month');
+    if (dashMonthSelect) {
+        dashMonthSelect.disabled = true;
+    }
+    
     loadExpenseChart();
+}
+
+function updateDashboardCardFilter(allCards) {
+    const dashBankSelect = document.getElementById('dash-filter-bank');
+    const dashCardSelect = document.getElementById('dash-filter-card');
+    
+    if (!dashCardSelect) return;
+    
+    const selectedBankId = dashBankSelect ? dashBankSelect.value : '';
+    const filteredCards = selectedBankId ? 
+        allCards.filter(card => card.bank_id.toString() === selectedBankId) : 
+        allCards;
+    
+    dashCardSelect.innerHTML = '<option value="">Todos os cartões</option>';
+    filteredCards.forEach(card => {
+        const option = document.createElement('option');
+        option.value = card.id;
+        option.textContent = card.name;
+        dashCardSelect.appendChild(option);
+    });
+}
+
+let cardPieChart = null;
+
+async function loadCardPieChart() {
+    try {
+        const params = new URLSearchParams();
+        const bankId = document.getElementById('pie-filter-bank')?.value;
+        const dateFrom = document.getElementById('pie-filter-date-from')?.value;
+        const dateTo = document.getElementById('pie-filter-date-to')?.value;
+        
+        if (bankId) params.append('bank_id', bankId);
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        
+        const url = '/api/summary/card-expenses' + (params.toString() ? '?' + params.toString() : '');
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        const ctx = document.getElementById('cardPieChart').getContext('2d');
+        
+        if (cardPieChart) {
+            cardPieChart.destroy();
+        }
+        
+        if (data.length === 0) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#6c757d';
+            ctx.textAlign = 'center';
+            ctx.fillText('Nenhum gasto encontrado para o período selecionado', ctx.canvas.width / 2, ctx.canvas.height / 2);
+            return;
+        }
+        
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+        ];
+        
+        cardPieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: data.map(item => item.card),
+                datasets: [{
+                    data: data.map(item => item.total),
+                    backgroundColor: colors.slice(0, data.length),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'right',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 20
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return context.label + ': R$ ' + context.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erro ao carregar gráfico de pizza:', error);
+    }
+}
+
+function applyPieFilters() {
+    loadCardPieChart();
+}
+
+function clearPieFilters() {
+    document.getElementById('pie-filter-bank').value = '';
+    document.getElementById('pie-filter-date-from').value = '';
+    document.getElementById('pie-filter-date-to').value = '';
+    loadCardPieChart();
 }
 
 // Expor funções globalmente
 window.applyDashboardFilters = applyDashboardFilters;
 window.clearDashboardFilters = clearDashboardFilters;
 window.loadDashboard = loadDashboard;
+window.updateDashboardCardFilter = updateDashboardCardFilter;
+window.applyPieFilters = applyPieFilters;
+window.clearPieFilters = clearPieFilters;
