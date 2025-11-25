@@ -33,6 +33,7 @@ def get_summary(session: Session = Depends(get_session)):
 def get_monthly_expenses(
     bank_id: Optional[int] = Query(None),
     card_id: Optional[int] = Query(None),
+    category_id: Optional[int] = Query(None),
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None),
     session: Session = Depends(get_session)
@@ -45,6 +46,9 @@ def get_monthly_expenses(
         query = query.where(Transaction.card_id == card_id)
     elif bank_id:
         query = query.join(Card).where(Card.bank_id == bank_id)
+    
+    if category_id:
+        query = query.where(Transaction.category_id == category_id)
     
     transactions = session.exec(query).all()
     
@@ -130,5 +134,47 @@ def get_card_expenses(
         "card": card_name,
         "total": total
     } for card_name, total in card_data.items()]
+    
+    return sorted(result, key=lambda x: x["total"], reverse=True)
+
+@router.get("/category-expenses")
+def get_category_expenses(
+    bank_id: Optional[int] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
+    session: Session = Depends(get_session)
+):
+    from app.models import Category
+    
+    # Query base para transações de despesa com categoria
+    query = select(Transaction, Category).join(Category, Transaction.category_id == Category.id, isouter=True).where(Transaction.type == "expense")
+    
+    # Aplicar filtros
+    if bank_id:
+        query = query.join(Card).where(Card.bank_id == bank_id)
+    
+    if date_from:
+        query = query.where(Transaction.date >= date_from)
+    
+    if date_to:
+        query = query.where(Transaction.date <= date_to)
+    
+    results = session.exec(query).all()
+    
+    # Agrupar por categoria
+    category_data = {}
+    for transaction, category in results:
+        category_name = category.name if category else "Sem categoria"
+        
+        if category_name not in category_data:
+            category_data[category_name] = 0.0
+        
+        category_data[category_name] += transaction.amount
+    
+    # Converter para formato do gráfico
+    result = [{
+        "category": category_name,
+        "total": total
+    } for category_name, total in category_data.items()]
     
     return sorted(result, key=lambda x: x["total"], reverse=True)

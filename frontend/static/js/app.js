@@ -83,11 +83,16 @@ function hideTransferForm() {
 
 function showCategoryForm() {
     document.getElementById('category-form-section').style.display = 'block';
+    document.querySelector('#category-form-section h5').textContent = 'Adicionar Categoria';
+    document.getElementById('category-form').removeAttribute('data-edit-id');
     document.getElementById('category-form').reset();
 }
 
 function hideCategoryForm() {
     document.getElementById('category-form-section').style.display = 'none';
+    document.querySelector('#category-form-section h5').textContent = 'Adicionar Categoria';
+    document.getElementById('category-form').removeAttribute('data-edit-id');
+    document.getElementById('category-form').reset();
 }
 
 function editBank(bankId) {
@@ -274,18 +279,28 @@ async function handleCategorySubmit(e) {
     
     const name = document.getElementById('category-name').value;
     const color = document.getElementById('category-color').value;
+    const editId = document.getElementById('category-form').dataset.editId;
     
     try {
-        const response = await fetch(`${API_BASE}/categories/`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ name, color })
-        });
+        let response;
+        if (editId) {
+            response = await fetch(`${API_BASE}/categories/${editId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color })
+            });
+        } else {
+            response = await fetch(`${API_BASE}/categories/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color })
+            });
+        }
         
         if (response.ok) {
             hideCategoryForm();
             loadData();
-            alert('Categoria adicionada!');
+            alert(editId ? 'Categoria atualizada!' : 'Categoria adicionada!');
         } else {
             alert('Erro ao salvar categoria');
         }
@@ -620,6 +635,9 @@ async function loadCategories() {
                                 <h6 class="mb-0">${category.name}</h6>
                             </div>
                             <div>
+                                <button class="btn btn-sm btn-outline-primary" onclick="editCategory(${category.id})">
+                                    Editar
+                                </button>
                                 <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${category.id})">
                                     Excluir
                                 </button>
@@ -634,6 +652,25 @@ async function loadCategories() {
         
     } catch (error) {
         console.error('Erro ao carregar categorias:', error);
+    }
+}
+
+async function editCategory(categoryId) {
+    try {
+        const response = await fetch(`${API_BASE}/categories/`);
+        const categories = await response.json();
+        const category = categories.find(c => c.id === categoryId);
+        
+        if (category) {
+            document.getElementById('category-form-section').style.display = 'block';
+            document.querySelector('#category-form-section h5').textContent = 'Editar Categoria';
+            document.getElementById('category-name').value = category.name;
+            document.getElementById('category-color').value = category.color;
+            document.getElementById('category-form').dataset.editId = categoryId;
+        }
+    } catch (error) {
+        console.error('Erro ao carregar categoria:', error);
+        alert('Erro ao carregar dados da categoria');
     }
 }
 
@@ -989,6 +1026,30 @@ async function loadTransactionFilters() {
             });
         }
         
+        // Carregar categorias para o filtro do dashboard
+        const dashCategorySelect = document.getElementById('dash-filter-category');
+        if (dashCategorySelect) {
+            dashCategorySelect.innerHTML = '<option value="">Todas as categorias</option>';
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                dashCategorySelect.appendChild(option);
+            });
+        }
+        
+        // Carregar bancos para o gráfico de categoria
+        const categoryPieBankSelect = document.getElementById('category-pie-filter-bank');
+        if (categoryPieBankSelect) {
+            categoryPieBankSelect.innerHTML = '<option value="">Todos os bancos</option>';
+            banks.forEach(bank => {
+                const option = document.createElement('option');
+                option.value = bank.id;
+                option.textContent = bank.name;
+                categoryPieBankSelect.appendChild(option);
+            });
+        }
+        
     } catch (error) {
         console.error('Erro ao carregar filtros:', error);
     }
@@ -1256,6 +1317,7 @@ async function loadDashboard() {
     await loadYearFilter();
     await loadExpenseChart();
     await loadCardPieChart();
+    await loadCategoryPieChart();
 }
 
 async function loadYearFilter() {
@@ -1289,6 +1351,7 @@ async function loadExpenseChart() {
         const params = new URLSearchParams();
         const bankId = document.getElementById('dash-filter-bank')?.value;
         const cardId = document.getElementById('dash-filter-card')?.value;
+        const categoryId = document.getElementById('dash-filter-category')?.value;
         const year = document.getElementById('dash-filter-year')?.value;
         const month = document.getElementById('dash-filter-month')?.value;
         
@@ -1301,6 +1364,7 @@ async function loadExpenseChart() {
         
         if (bankId) params.append('bank_id', bankId);
         if (cardId) params.append('card_id', cardId);
+        if (categoryId) params.append('category_id', categoryId);
         if (year) params.append('year', year);
         if (month) params.append('month', month);
         
@@ -1420,6 +1484,7 @@ function applyDashboardFilters() {
 function clearDashboardFilters() {
     document.getElementById('dash-filter-bank').value = '';
     document.getElementById('dash-filter-card').value = '';
+    document.getElementById('dash-filter-category').value = '';
     document.getElementById('dash-filter-year').value = '';
     document.getElementById('dash-filter-month').value = '';
     
@@ -1540,6 +1605,94 @@ function clearPieFilters() {
     loadCardPieChart();
 }
 
+let categoryPieChart = null;
+
+async function loadCategoryPieChart() {
+    try {
+        const params = new URLSearchParams();
+        const bankId = document.getElementById('category-pie-filter-bank')?.value;
+        const dateFrom = document.getElementById('category-pie-filter-date-from')?.value;
+        const dateTo = document.getElementById('category-pie-filter-date-to')?.value;
+        
+        if (bankId) params.append('bank_id', bankId);
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        
+        const url = '/api/summary/category-expenses' + (params.toString() ? '?' + params.toString() : '');
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        const ctx = document.getElementById('categoryPieChart').getContext('2d');
+        
+        if (categoryPieChart) {
+            categoryPieChart.destroy();
+        }
+        
+        if (data.length === 0) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.font = '16px Arial';
+            ctx.fillStyle = '#6c757d';
+            ctx.textAlign = 'center';
+            ctx.fillText('Nenhum gasto encontrado para o período selecionado', ctx.canvas.width / 2, ctx.canvas.height / 2);
+            return;
+        }
+        
+        const colors = [
+            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+            '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF6384'
+        ];
+        
+        categoryPieChart = new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: data.map(item => item.category),
+                datasets: [{
+                    data: data.map(item => item.total),
+                    backgroundColor: colors.slice(0, data.length),
+                    borderWidth: 2,
+                    borderColor: '#fff'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            usePointStyle: true,
+                            padding: 15
+                        }
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                return context.label + ': R$ ' + context.parsed.toLocaleString('pt-BR', { minimumFractionDigits: 2 }) + ' (' + percentage + '%)';
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+    } catch (error) {
+        console.error('Erro ao carregar gráfico de categoria:', error);
+    }
+}
+
+function applyCategoryPieFilters() {
+    loadCategoryPieChart();
+}
+
+function clearCategoryPieFilters() {
+    document.getElementById('category-pie-filter-bank').value = '';
+    document.getElementById('category-pie-filter-date-from').value = '';
+    document.getElementById('category-pie-filter-date-to').value = '';
+    loadCategoryPieChart();
+}
+
 // Expor funções globalmente
 window.applyDashboardFilters = applyDashboardFilters;
 window.clearDashboardFilters = clearDashboardFilters;
@@ -1547,9 +1700,12 @@ window.loadDashboard = loadDashboard;
 window.updateDashboardCardFilter = updateDashboardCardFilter;
 window.applyPieFilters = applyPieFilters;
 window.clearPieFilters = clearPieFilters;
+window.applyCategoryPieFilters = applyCategoryPieFilters;
+window.clearCategoryPieFilters = clearCategoryPieFilters;
 window.showCategoryForm = showCategoryForm;
 window.hideCategoryForm = hideCategoryForm;
 window.deleteCategory = deleteCategory;
+window.editCategory = editCategory;
 window.editTransaction = editTransaction;
 window.editGroup = editGroup;
 window.saveEdit = saveEdit;

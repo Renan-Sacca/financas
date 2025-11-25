@@ -84,6 +84,12 @@
                                         <option value="12">Dezembro</option>
                                     </select>
                                 </div>
+                                <div class="col-md-2">
+                                    <label for="dash-filter-category" class="form-label">Categoria</label>
+                                    <select class="form-select" id="dash-filter-category">
+                                        <option value="">Todas as categorias</option>
+                                    </select>
+                                </div>
                                 <div class="col-md-2 d-flex align-items-end gap-2">
                                     <button class="btn btn-primary" onclick="applyDashboardFilters()">Aplicar</button>
                                     <button class="btn btn-outline-secondary" onclick="clearDashboardFilters()">Limpar</button>
@@ -104,34 +110,66 @@
             </div>
             
             <div class="row mb-4">
-                <div class="col-12">
+                <div class="col-md-6">
                     <div class="card">
                         <div class="card-header">
                             <h5>Gastos por Cartão</h5>
                         </div>
                         <div class="card-body">
                             <div class="row mb-3">
-                                <div class="col-md-3">
+                                <div class="col-md-6">
                                     <label for="pie-filter-bank" class="form-label">Banco</label>
                                     <select class="form-select" id="pie-filter-bank">
                                         <option value="">Todos os bancos</option>
                                     </select>
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-6">
                                     <label for="pie-filter-date-from" class="form-label">Data Inicial</label>
                                     <input type="date" class="form-control" id="pie-filter-date-from">
                                 </div>
-                                <div class="col-md-3">
+                                <div class="col-md-6">
                                     <label for="pie-filter-date-to" class="form-label">Data Final</label>
                                     <input type="date" class="form-control" id="pie-filter-date-to">
                                 </div>
-                                <div class="col-md-3 d-flex align-items-end gap-2">
-                                    <button class="btn btn-primary" onclick="applyPieFilters()">Aplicar</button>
-                                    <button class="btn btn-outline-secondary" onclick="clearPieFilters()">Limpar</button>
+                                <div class="col-md-6 d-flex align-items-end gap-2">
+                                    <button class="btn btn-primary btn-sm" onclick="applyPieFilters()">Aplicar</button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="clearPieFilters()">Limpar</button>
                                 </div>
                             </div>
-                            <div style="height: 400px;">
+                            <div style="height: 300px;">
                                 <canvas id="cardPieChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5>Gastos por Categoria</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="category-pie-filter-bank" class="form-label">Banco</label>
+                                    <select class="form-select" id="category-pie-filter-bank">
+                                        <option value="">Todos os bancos</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="category-pie-filter-date-from" class="form-label">Data Inicial</label>
+                                    <input type="date" class="form-control" id="category-pie-filter-date-from">
+                                </div>
+                                <div class="col-md-6">
+                                    <label for="category-pie-filter-date-to" class="form-label">Data Final</label>
+                                    <input type="date" class="form-control" id="category-pie-filter-date-to">
+                                </div>
+                                <div class="col-md-6 d-flex align-items-end gap-2">
+                                    <button class="btn btn-primary btn-sm" onclick="applyCategoryPieFilters()">Aplicar</button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="clearCategoryPieFilters()">Limpar</button>
+                                </div>
+                            </div>
+                            <div style="height: 300px;">
+                                <canvas id="categoryPieChart"></canvas>
                             </div>
                         </div>
                     </div>

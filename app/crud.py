@@ -285,6 +285,16 @@ def create_category(session: Session, category: CategoryCreate) -> Category:
 def get_categories(session: Session) -> List[Category]:
     return session.exec(select(Category)).all()
 
+def update_category(session: Session, category_id: int, category_update: CategoryCreate) -> Optional[Category]:
+    category = session.get(Category, category_id)
+    if category:
+        category.name = category_update.name
+        category.color = category_update.color
+        session.commit()
+        session.refresh(category)
+        return category
+    return None
+
 def delete_category(session: Session, category_id: int) -> bool:
     category = session.get(Category, category_id)
     if category:

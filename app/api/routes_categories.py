@@ -15,6 +15,13 @@ def create_category(category: CategoryCreate, session: Session = Depends(get_ses
 def list_categories(session: Session = Depends(get_session)):
     return crud.get_categories(session)
 
+@router.put("/{category_id}", response_model=CategoryResponse)
+def update_category(category_id: int, category: CategoryCreate, session: Session = Depends(get_session)):
+    updated_category = crud.update_category(session, category_id, category)
+    if not updated_category:
+        raise HTTPException(status_code=404, detail="Category not found")
+    return updated_category
+
 @router.delete("/{category_id}", status_code=204)
 def delete_category(category_id: int, session: Session = Depends(get_session)):
     if not crud.delete_category(session, category_id):
