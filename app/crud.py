@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
-from app.models import Bank, Card, Transaction, TransactionType
-from app.schemas import BankCreate, BankUpdate, CardCreate, CardUpdate, TransactionCreate, TransferCreate
+from app.models import Bank, Card, Transaction, TransactionType, Category
+from app.schemas import BankCreate, BankUpdate, CardCreate, CardUpdate, TransactionCreate, TransferCreate, CategoryCreate
 from typing import List, Optional
 from datetime import date
 
@@ -195,6 +195,69 @@ def bulk_update_transaction_status(session: Session, transaction_ids: List[int],
         return transactions
     return []
 
+def update_transaction_group(session: Session, request) -> int:
+    # Buscar todas as transações do grupo
+    transactions = session.exec(
+        select(Transaction).where(Transaction.group_id == request.group_id)
+    ).all()
+    
+    if not transactions:
+        return 0
+    
+    # Excluir transações antigas
+    for transaction in transactions:
+        session.delete(transaction)
+    
+    session.commit()
+    
+    # Criar novas transações com os dados atualizados
+    installment_amount = request.total_amount / request.installments
+    
+    # Buscar dados do cartão
+    card = session.get(Card, request.card_id)
+    due_day = card.due_day if card and card.due_day else 1
+    
+    # Calcular datas
+    from datetime import datetime
+    purchase_date = request.date
+    year, month, day = purchase_date.year, purchase_date.month, purchase_date.day
+    
+    first_due_year = year
+    first_due_month = month
+    if day > due_day:
+        first_due_month += 1
+        if first_due_month > 12:
+            first_due_month = 1
+            first_due_year += 1
+    
+    for i in range(request.installments):
+        installment_year = first_due_year
+        installment_month = first_due_month + i
+        
+        while installment_month > 12:
+            installment_month -= 12
+            installment_year += 1
+        
+        installment_date = datetime(installment_year, installment_month, due_day).date()
+        installment_description = f"{request.description} ({i + 1}/{request.installments})" if request.installments > 1 else request.description
+        
+        new_transaction = Transaction(
+            card_id=request.card_id,
+            amount=installment_amount,
+            type=TransactionType.expense,
+            description=installment_description,
+            date=installment_date,
+            purchase_date=purchase_date,
+            category_id=request.category_id,
+            group_id=request.group_id,
+            installment_number=i + 1 if request.installments > 1 else None,
+            total_installments=request.installments if request.installments > 1 else None
+        )
+        session.add(new_transaction)
+    
+    session.commit()
+    return request.installments
+
 def mark_previous_transactions_as_paid(session: Session, current_date) -> int:
     from datetime import date
     transactions = session.exec(
@@ -207,6 +270,37 @@ def mark_previous_transactions_as_paid(session: Session, current_date) -> int:
     count = 0
     for transaction in transactions:
         transaction.is_paid = True
+        count += 1
+    
+    session.commit()
+    return count
+
+def create_category(session: Session, category: CategoryCreate) -> Category:
+    db_category = Category(**category.dict())
+    session.add(db_category)
+    session.commit()
+    session.refresh(db_category)
+    return db_category
+
+def get_categories(session: Session) -> List[Category]:
+    return session.exec(select(Category)).all()
+
+def delete_category(session: Session, category_id: int) -> bool:
+    category = session.get(Category, category_id)
+    if category:
+        session.delete(category)
+        session.commit()
+        return True
+    return False
+
+def delete_transaction_group(session: Session, group_id: str) -> int:
+    transactions = session.exec(
+        select(Transaction).where(Transaction.group_id == group_id)
+    ).all()
+    
+    count = 0
+    for transaction in transactions:
+        session.delete(transaction)
         count += 1
     
     session.commit()

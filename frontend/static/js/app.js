@@ -26,6 +26,8 @@ function showSection(sectionName) {
         loadDashboard();
     } else if (sectionName === 'transfers') {
         loadTransfers();
+    } else if (sectionName === 'categories') {
+        loadCategories();
     } else if (typeof loadData === 'function') {
         loadData();
     }
@@ -77,6 +79,15 @@ function showTransferForm() {
 function hideTransferForm() {
     const section = document.getElementById('transfer-form-section');
     if (section) section.style.display = 'none';
+}
+
+function showCategoryForm() {
+    document.getElementById('category-form-section').style.display = 'block';
+    document.getElementById('category-form').reset();
+}
+
+function hideCategoryForm() {
+    document.getElementById('category-form-section').style.display = 'none';
 }
 
 function editBank(bankId) {
@@ -139,6 +150,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const transferForm = document.getElementById('transfer-form');
     if (transferForm) {
         transferForm.addEventListener('submit', handleDepositSubmit);
+    }
+    
+    const categoryForm = document.getElementById('category-form');
+    if (categoryForm) {
+        categoryForm.addEventListener('submit', handleCategorySubmit);
     }
 });
 
@@ -253,6 +269,32 @@ async function handleCardSubmit(e) {
     }
 }
 
+async function handleCategorySubmit(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('category-name').value;
+    const color = document.getElementById('category-color').value;
+    
+    try {
+        const response = await fetch(`${API_BASE}/categories/`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, color })
+        });
+        
+        if (response.ok) {
+            hideCategoryForm();
+            loadData();
+            alert('Categoria adicionada!');
+        } else {
+            alert('Erro ao salvar categoria');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao salvar categoria');
+    }
+}
+
 async function handleTransactionSubmit(e) {
     e.preventDefault();
     
@@ -261,29 +303,57 @@ async function handleTransactionSubmit(e) {
     const totalAmount = parseFloat(document.getElementById('amount').value);
     const description = document.getElementById('description').value;
     const date = document.getElementById('transaction-date').value;
+    const categoryId = document.getElementById('category-select').value || null;
     const installments = parseInt(document.getElementById('installments').value) || 1;
     
     try {
         if (transactionId) {
-            // Editar transação existente
-            const response = await fetch(`${API_BASE}/transactions/${transactionId}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    card_id: cardId, 
-                    amount: totalAmount, 
-                    type: 'expense', 
-                    description: description, 
-                    date: date
-                })
-            });
-            
-            if (response.ok) {
-                hideTransactionForm();
-                loadData();
-                alert('Compra atualizada com sucesso!');
+            if (transactionId.startsWith('group:')) {
+                // Editar grupo de parcelas
+                const groupId = transactionId.replace('group:', '');
+                const response = await fetch(`${API_BASE}/transactions/update-group`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        group_id: groupId,
+                        card_id: cardId, 
+                        total_amount: totalAmount, 
+                        description: description, 
+                        date: date,
+                        category_id: categoryId,
+                        installments: installments
+                    })
+                });
+                
+                if (response.ok) {
+                    hideTransactionForm();
+                    loadData();
+                    alert('Compra parcelada atualizada com sucesso!');
+                } else {
+                    alert('Erro ao atualizar compra parcelada');
+                }
             } else {
-                alert('Erro ao atualizar compra');
+                // Editar transação única
+                const response = await fetch(`${API_BASE}/transactions/${transactionId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        card_id: cardId, 
+                        amount: totalAmount, 
+                        type: 'expense', 
+                        description: description, 
+                        date: date,
+                        category_id: categoryId
+                    })
+                });
+                
+                if (response.ok) {
+                    hideTransactionForm();
+                    loadData();
+                    alert('Compra atualizada com sucesso!');
+                } else {
+                    alert('Erro ao atualizar compra');
+                }
             }
         } else {
             // Buscar dados do cartão para calcular vencimento
@@ -293,6 +363,9 @@ async function handleTransactionSubmit(e) {
             
             const installmentAmount = totalAmount / installments;
             const [year, month, day] = date.split('-').map(Number);
+            
+            // Gerar ID único para agrupar parcelas
+            const groupId = installments > 1 ? `group_${Date.now()}_${Math.random().toString(36).substr(2, 9)}` : null;
             
             // Calcular primeira data de vencimento
             let firstDueYear = year;
@@ -331,7 +404,11 @@ async function handleTransactionSubmit(e) {
                         type: 'expense', 
                         description: installmentDescription, 
                         date: installmentDateStr,
-                        purchase_date: date
+                        purchase_date: date,
+                        category_id: categoryId,
+                        group_id: groupId,
+                        installment_number: installments > 1 ? i + 1 : null,
+                        total_installments: installments > 1 ? installments : null
                     })
                 });
             }
@@ -357,6 +434,7 @@ async function loadData() {
         loadSummary(),
         loadBanks(),
         loadCards(),
+        loadCategories(),
         loadTransfers()
     ]);
     
@@ -526,6 +604,232 @@ async function loadCards() {
     }
 }
 
+async function loadCategories() {
+    try {
+        const response = await fetch(`${API_BASE}/categories/`);
+        const categories = await response.json();
+        
+        let html = '';
+        categories.forEach(category => {
+            html += `
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="d-flex align-items-center">
+                                <div class="category-color" style="width: 20px; height: 20px; background-color: ${category.color}; border-radius: 50%; margin-right: 10px;"></div>
+                                <h6 class="mb-0">${category.name}</h6>
+                            </div>
+                            <div>
+                                <button class="btn btn-sm btn-outline-danger" onclick="deleteCategory(${category.id})">
+                                    Excluir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+        
+        document.getElementById('categories-list').innerHTML = html || '<p class="text-muted">Nenhuma categoria cadastrada.</p>';
+        
+    } catch (error) {
+        console.error('Erro ao carregar categorias:', error);
+    }
+}
+
+async function deleteCategory(categoryId) {
+    if (!confirm('Tem certeza que deseja excluir esta categoria?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/categories/${categoryId}`, { method: 'DELETE' });
+        if (response.ok) {
+            loadData();
+            alert('Categoria excluída com sucesso!');
+        } else {
+            alert('Erro ao excluir categoria');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao excluir categoria');
+    }
+}
+
+async function editGroup(groupId) {
+    try {
+        const response = await fetch(`${API_BASE}/transactions/`);
+        const transactions = await response.json();
+        const groupTransactions = transactions.filter(t => t.group_id === groupId);
+        
+        if (groupTransactions.length > 0) {
+            const firstTransaction = groupTransactions[0];
+            const totalAmount = groupTransactions.reduce((sum, t) => sum + t.amount, 0);
+            
+            await loadEditModalData();
+            
+            document.getElementById('editModalTitle').textContent = 'Editar Compra Parcelada';
+            document.getElementById('edit-transaction-id').value = `group:${groupId}`;
+            document.getElementById('edit-card-select').value = firstTransaction.card_id;
+            document.getElementById('edit-amount').value = totalAmount;
+            document.getElementById('edit-description').value = firstTransaction.description.replace(/ \(\d+\/\d+\)$/, '');
+            document.getElementById('edit-transaction-date').value = firstTransaction.purchase_date || firstTransaction.date;
+            document.getElementById('edit-category-select').value = firstTransaction.category_id || '';
+            document.getElementById('edit-installments').value = firstTransaction.total_installments;
+            
+            toggleEditInstallments();
+            new bootstrap.Modal(document.getElementById('editModal')).show();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar grupo:', error);
+        alert('Erro ao carregar dados do grupo');
+    }
+}
+
+async function editTransaction(transactionId) {
+    try {
+        const response = await fetch(`${API_BASE}/transactions/`);
+        const transactions = await response.json();
+        const transaction = transactions.find(t => t.id === transactionId);
+        
+        if (transaction) {
+            await loadEditModalData();
+            
+            document.getElementById('editModalTitle').textContent = 'Editar Compra';
+            document.getElementById('edit-transaction-id').value = transaction.id;
+            document.getElementById('edit-card-select').value = transaction.card_id;
+            document.getElementById('edit-amount').value = transaction.amount;
+            document.getElementById('edit-description').value = transaction.description;
+            document.getElementById('edit-transaction-date').value = transaction.date;
+            document.getElementById('edit-category-select').value = transaction.category_id || '';
+            
+            toggleEditInstallments();
+            new bootstrap.Modal(document.getElementById('editModal')).show();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar transação:', error);
+        alert('Erro ao carregar dados da transação');
+    }
+}
+
+async function loadEditModalData() {
+    const cardsResponse = await fetch('/api/cards/');
+    const cards = await cardsResponse.json();
+    
+    const cardSelect = document.getElementById('edit-card-select');
+    cardSelect.innerHTML = '<option value="">Selecione um cartão</option>';
+    cards.forEach(card => {
+        const option = document.createElement('option');
+        option.value = card.id;
+        option.textContent = `${card.name} (${card.type === 'credit' ? 'Crédito' : 'Débito'})`;
+        cardSelect.appendChild(option);
+    });
+    
+    const categoriesResponse = await fetch('/api/categories/');
+    const categories = await categoriesResponse.json();
+    
+    const categorySelect = document.getElementById('edit-category-select');
+    categorySelect.innerHTML = '<option value="">Sem categoria</option>';
+    categories.forEach(category => {
+        const option = document.createElement('option');
+        option.value = category.id;
+        option.textContent = category.name;
+        categorySelect.appendChild(option);
+    });
+}
+
+function toggleEditInstallments() {
+    const select = document.getElementById('edit-card-select');
+    const field = document.getElementById('edit-installments-field');
+    if (select.value) {
+        fetch('/api/cards/').then(r => r.json()).then(cards => {
+            const card = cards.find(c => c.id == select.value);
+            field.style.display = card && card.type === 'credit' ? 'block' : 'none';
+        });
+    } else {
+        field.style.display = 'none';
+    }
+}
+
+async function saveEdit() {
+    const transactionId = document.getElementById('edit-transaction-id').value;
+    const cardId = parseInt(document.getElementById('edit-card-select').value);
+    const totalAmount = parseFloat(document.getElementById('edit-amount').value);
+    const description = document.getElementById('edit-description').value;
+    const date = document.getElementById('edit-transaction-date').value;
+    const categoryId = document.getElementById('edit-category-select').value || null;
+    const installments = parseInt(document.getElementById('edit-installments').value) || 1;
+    
+    try {
+        if (transactionId.startsWith('group:')) {
+            const groupId = transactionId.replace('group:', '');
+            const response = await fetch(`${API_BASE}/transactions/update-group`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    group_id: groupId,
+                    card_id: cardId, 
+                    total_amount: totalAmount, 
+                    description: description, 
+                    date: date,
+                    category_id: categoryId,
+                    installments: installments
+                })
+            });
+            
+            if (response.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+                loadData();
+                alert('Compra parcelada atualizada com sucesso!');
+            } else {
+                alert('Erro ao atualizar compra parcelada');
+            }
+        } else {
+            const response = await fetch(`${API_BASE}/transactions/${transactionId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    card_id: cardId, 
+                    amount: totalAmount, 
+                    type: 'expense', 
+                    description: description, 
+                    date: date,
+                    category_id: categoryId
+                })
+            });
+            
+            if (response.ok) {
+                bootstrap.Modal.getInstance(document.getElementById('editModal')).hide();
+                loadData();
+                alert('Compra atualizada com sucesso!');
+            } else {
+                alert('Erro ao atualizar compra');
+            }
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao salvar alterações');
+    }
+}
+
+async function deleteGroup(groupId) {
+    if (!confirm('Tem certeza que deseja excluir TODAS as parcelas desta compra?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/transactions/delete-group/${groupId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadData();
+            alert('Todas as parcelas foram excluídas com sucesso!');
+        } else {
+            alert('Erro ao excluir parcelas');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao excluir parcelas');
+    }
+}
+
 let selectedTransactions = new Set();
 
 async function loadTransactionsData() {
@@ -549,13 +853,15 @@ async function loadTransactionsData() {
         tbody.innerHTML = '';
         
         if (transactions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="10">Nenhuma transação encontrada</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="11">Nenhuma transação encontrada</td></tr>';
             return;
         }
         
         transactions.forEach(t => {
             const purchaseDate = t.purchase_date ? new Date(t.purchase_date + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
             const billDate = new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR');
+            const categoryName = t.category_name || '-';
+            const installmentInfo = (t.total_installments && t.total_installments > 1) ? `${t.installment_number}/${t.total_installments}` : '-';
             
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -564,13 +870,15 @@ async function loadTransactionsData() {
                 <td>${billDate}</td>
                 <td>${t.bank_name}</td>
                 <td>${t.card_name}</td>
+                <td>${categoryName}</td>
                 <td>${t.description}</td>
                 <td>R$ ${t.amount.toFixed(2)}</td>
-                <td>-</td>
+                <td>${installmentInfo}</td>
                 <td>${t.is_paid ? 'Pago' : 'Pendente'}</td>
                 <td>
+                    ${t.group_id ? `<button class="btn btn-sm btn-outline-info" onclick="editGroup('${t.group_id}')" title="Editar Grupo">🔗</button> ` : ''}<button class="btn btn-sm btn-outline-primary" onclick="editTransaction(${t.id})" title="Editar">✏️</button>
                     <button class="btn btn-sm btn-outline-success" onclick="togglePayment(${t.id})" title="Alterar Status">✓</button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction(${t.id})" title="Excluir">🗑️</button>
+                    ${t.group_id ? `<button class="btn btn-sm btn-outline-warning" onclick="deleteGroup('${t.group_id}')" title="Excluir Todas Parcelas">🗗</button> ` : ''}<button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction(${t.id})" title="Excluir">🗑️</button>
                 </td>
             `;
             tbody.appendChild(row);
@@ -614,6 +922,21 @@ async function loadTransactionFilters() {
                 option.value = card.id;
                 option.textContent = `${card.name} (${card.type === 'credit' ? 'Crédito' : 'Débito'})`;
                 cardSelect.appendChild(option);
+            });
+        }
+        
+        // Carregar categorias para o formulário
+        const categoriesResponse = await fetch('/api/categories/');
+        const categories = await categoriesResponse.json();
+        
+        const categorySelect = document.getElementById('category-select');
+        if (categorySelect) {
+            categorySelect.innerHTML = '<option value="">Sem categoria</option>';
+            categories.forEach(category => {
+                const option = document.createElement('option');
+                option.value = category.id;
+                option.textContent = category.name;
+                categorySelect.appendChild(option);
             });
         }
         
@@ -1224,3 +1547,11 @@ window.loadDashboard = loadDashboard;
 window.updateDashboardCardFilter = updateDashboardCardFilter;
 window.applyPieFilters = applyPieFilters;
 window.clearPieFilters = clearPieFilters;
+window.showCategoryForm = showCategoryForm;
+window.hideCategoryForm = hideCategoryForm;
+window.deleteCategory = deleteCategory;
+window.editTransaction = editTransaction;
+window.editGroup = editGroup;
+window.saveEdit = saveEdit;
+window.toggleEditInstallments = toggleEditInstallments;
+window.deleteGroup = deleteGroup;

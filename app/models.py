@@ -15,6 +15,14 @@ class TransactionType(str, Enum):
     transfer_out = "transfer_out"
     transfer_in = "transfer_in"
 
+class Category(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str = Field(unique=True)
+    color: Optional[str] = Field(default="#007bff")
+    created_at: datetime = Field(default_factory=datetime.now)
+    
+    transactions: List["Transaction"] = Relationship(back_populates="category")
+
 class Bank(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(unique=True)
@@ -44,8 +52,13 @@ class Transaction(SQLModel, table=True):
     date: date
     purchase_date: Optional[date] = Field(default=None)
     is_paid: bool = Field(default=False)
+    category_id: Optional[int] = Field(default=None, foreign_key="category.id")
+    group_id: Optional[str] = Field(default=None)
+    installment_number: Optional[int] = Field(default=None)
+    total_installments: Optional[int] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.now)
     transfer_to_bank_id: Optional[int] = Field(default=None, foreign_key="bank.id")
     
     card: Card = Relationship(back_populates="transactions")
+    category: Optional[Category] = Relationship(back_populates="transactions")
     transfer_to_bank: Optional[Bank] = Relationship()

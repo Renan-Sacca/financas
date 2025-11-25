@@ -15,6 +15,7 @@
                 <a class="nav-link" href="#" onclick="showSection('dashboard')">Dashboard</a>
                 <a class="nav-link" href="#" onclick="showSection('banks')">Bancos</a>
                 <a class="nav-link" href="#" onclick="showSection('cards')">Cartões</a>
+                <a class="nav-link" href="#" onclick="showSection('categories')">Categorias</a>
                 <a class="nav-link" href="#" onclick="showSection('transactions')">Transações</a>
                 <a class="nav-link" href="#" onclick="showSection('transfers')">Depósitos</a>
             </div>
@@ -177,6 +178,50 @@
             <div class="card">
                 <div class="card-body">
                     <div id="banks-list">
+                        <!-- Conteúdo carregado via JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Categorias -->
+        <div id="categories-section" class="section" style="display: none;">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>Categorias</h2>
+                <button class="btn btn-primary" onclick="showCategoryForm()">Nova Categoria</button>
+            </div>
+            
+            <div id="category-form-section" style="display: none;">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5>Adicionar Categoria</h5>
+                    </div>
+                    <div class="card-body">
+                        <form id="category-form">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="category-name" class="form-label">Nome da Categoria</label>
+                                        <input type="text" class="form-control" id="category-name" required>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="category-color" class="form-label">Cor</label>
+                                        <input type="color" class="form-control" id="category-color" value="#007bff">
+                                    </div>
+                                </div>
+                            </div>
+                            <button type="submit" class="btn btn-success me-2">Salvar</button>
+                            <button type="button" class="btn btn-secondary" onclick="hideCategoryForm()">Cancelar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-body">
+                    <div id="categories-list">
                         <!-- Conteúdo carregado via JavaScript -->
                     </div>
                 </div>
@@ -352,6 +397,14 @@
                                         <input type="number" min="1" max="60" class="form-control" id="installments" value="1" placeholder="1">
                                     </div>
                                 </div>
+                                <div class="col-md-2">
+                                    <div class="mb-3">
+                                        <label for="category-select" class="form-label">Categoria</label>
+                                        <select class="form-select" id="category-select">
+                                            <option value="">Sem categoria</option>
+                                        </select>
+                                    </div>
+                                </div>
                                 <div class="col-md-3">
                                     <div class="mb-3">
                                         <label for="description" class="form-label">Descrição</label>
@@ -385,6 +438,7 @@
                                     <th>Data Fatura</th>
                                     <th>Banco</th>
                                     <th>Cartão</th>
+                                    <th>Categoria</th>
                                     <th>Descrição</th>
                                     <th>Valor</th>
                                     <th>Parcela</th>
@@ -475,7 +529,68 @@
         </div>
     </div>
 
-
+    <!-- Modal de Edição -->
+    <div class="modal fade" id="editModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editModalTitle">Editar Compra</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="edit-form">
+                        <input type="hidden" id="edit-transaction-id">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="edit-card-select" class="form-label">Cartão</label>
+                                    <select class="form-select" id="edit-card-select" required onchange="toggleEditInstallments()">
+                                        <option value="">Selecione um cartão</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="edit-amount" class="form-label">Valor Total</label>
+                                    <input type="number" step="0.01" class="form-control" id="edit-amount" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2" id="edit-installments-field" style="display: none;">
+                                <div class="mb-3">
+                                    <label for="edit-installments" class="form-label">Parcelas</label>
+                                    <input type="number" min="1" max="60" class="form-control" id="edit-installments" value="1">
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="edit-category-select" class="form-label">Categoria</label>
+                                    <select class="form-select" id="edit-category-select">
+                                        <option value="">Sem categoria</option>
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <div class="mb-3">
+                                    <label for="edit-description" class="form-label">Descrição</label>
+                                    <input type="text" class="form-control" id="edit-description" required>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="mb-3">
+                                    <label for="edit-transaction-date" class="form-label">Data da Compra</label>
+                                    <input type="date" class="form-control" id="edit-transaction-date" required>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="button" class="btn btn-primary" onclick="saveEdit()">Salvar</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script>
         window.selectedTransactions = new Set();

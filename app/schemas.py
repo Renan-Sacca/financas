@@ -37,6 +37,15 @@ class CardResponse(BaseModel):
     limit_amount: Optional[float] = None
     due_day: Optional[int] = None
 
+class CategoryCreate(BaseModel):
+    name: str
+    color: Optional[str] = "#007bff"
+
+class CategoryResponse(BaseModel):
+    id: int
+    name: str
+    color: str
+
 class TransactionCreate(BaseModel):
     card_id: int
     amount: float
@@ -44,6 +53,10 @@ class TransactionCreate(BaseModel):
     description: str
     date: date
     purchase_date: Optional[date] = None
+    category_id: Optional[int] = None
+    group_id: Optional[str] = None
+    installment_number: Optional[int] = None
+    total_installments: Optional[int] = None
     transfer_to_bank_id: Optional[int] = None
 
 class TransferCreate(BaseModel):
@@ -62,6 +75,11 @@ class TransactionResponse(BaseModel):
     date: date
     purchase_date: Optional[date] = None
     is_paid: bool
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    group_id: Optional[str] = None
+    installment_number: Optional[int] = None
+    total_installments: Optional[int] = None
     card_name: str
     card_type: CardType
     bank_name: str

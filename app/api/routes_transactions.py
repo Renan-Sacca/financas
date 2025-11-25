@@ -6,7 +6,7 @@ from pydantic import BaseModel
 from app.database import get_session
 from app.schemas import TransactionCreate, TransactionResponse
 from app import crud
-from app.models import Card, Bank
+from app.models import Card, Bank, Category
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -24,6 +24,11 @@ def create_transaction(transaction: TransactionCreate, session: Session = Depend
         transfer_bank = session.get(Bank, db_transaction.transfer_to_bank_id)
         transfer_to_bank_name = transfer_bank.name if transfer_bank else None
     
+    category_name = None
+    if db_transaction.category_id:
+        category = session.get(Category, db_transaction.category_id)
+        category_name = category.name if category else None
+    
     return TransactionResponse(
         id=db_transaction.id,
         card_id=db_transaction.card_id,
@@ -33,6 +38,11 @@ def create_transaction(transaction: TransactionCreate, session: Session = Depend
         date=db_transaction.date,
         purchase_date=db_transaction.purchase_date,
         is_paid=db_transaction.is_paid,
+        category_id=db_transaction.category_id,
+        category_name=category_name,
+        group_id=db_transaction.group_id,
+        installment_number=db_transaction.installment_number,
+        total_installments=db_transaction.total_installments,
         card_name=card.name,
         card_type=card.type,
         bank_name=card.bank.name,
@@ -60,6 +70,11 @@ def list_transactions(
             transfer_bank = session.get(Bank, transaction.transfer_to_bank_id)
             transfer_to_bank_name = transfer_bank.name if transfer_bank else None
         
+        category_name = None
+        if transaction.category_id:
+            category = session.get(Category, transaction.category_id)
+            category_name = category.name if category else None
+        
         result.append(TransactionResponse(
             id=transaction.id,
             card_id=transaction.card_id,
@@ -69,6 +84,11 @@ def list_transactions(
             date=transaction.date,
             purchase_date=transaction.purchase_date,
             is_paid=transaction.is_paid,
+            category_id=transaction.category_id,
+            category_name=category_name,
+            group_id=transaction.group_id,
+            installment_number=transaction.installment_number,
+            total_installments=transaction.total_installments,
             card_name=card.name,
             card_type=card.type,
             bank_name=bank.name,
@@ -89,6 +109,11 @@ def update_transaction(transaction_id: int, transaction_update: TransactionCreat
         transfer_bank = session.get(Bank, updated_transaction.transfer_to_bank_id)
         transfer_to_bank_name = transfer_bank.name if transfer_bank else None
     
+    category_name = None
+    if updated_transaction.category_id:
+        category = session.get(Category, updated_transaction.category_id)
+        category_name = category.name if category else None
+    
     return TransactionResponse(
         id=updated_transaction.id,
         card_id=updated_transaction.card_id,
@@ -96,7 +121,13 @@ def update_transaction(transaction_id: int, transaction_update: TransactionCreat
         type=updated_transaction.type,
         description=updated_transaction.description,
         date=updated_transaction.date,
+        purchase_date=updated_transaction.purchase_date,
         is_paid=updated_transaction.is_paid,
+        category_id=updated_transaction.category_id,
+        category_name=category_name,
+        group_id=updated_transaction.group_id,
+        installment_number=updated_transaction.installment_number,
+        total_installments=updated_transaction.total_installments,
         card_name=card.name,
         card_type=card.type,
         bank_name=card.bank.name,
@@ -115,6 +146,11 @@ def toggle_transaction_payment(transaction_id: int, session: Session = Depends(g
         transfer_bank = session.get(Bank, updated_transaction.transfer_to_bank_id)
         transfer_to_bank_name = transfer_bank.name if transfer_bank else None
     
+    category_name = None
+    if updated_transaction.category_id:
+        category = session.get(Category, updated_transaction.category_id)
+        category_name = category.name if category else None
+    
     return TransactionResponse(
         id=updated_transaction.id,
         card_id=updated_transaction.card_id,
@@ -122,7 +158,13 @@ def toggle_transaction_payment(transaction_id: int, session: Session = Depends(g
         type=updated_transaction.type,
         description=updated_transaction.description,
         date=updated_transaction.date,
+        purchase_date=updated_transaction.purchase_date,
         is_paid=updated_transaction.is_paid,
+        category_id=updated_transaction.category_id,
+        category_name=category_name,
+        group_id=updated_transaction.group_id,
+        installment_number=updated_transaction.installment_number,
+        total_installments=updated_transaction.total_installments,
         card_name=card.name,
         card_type=card.type,
         bank_name=card.bank.name,
@@ -166,12 +208,33 @@ def bulk_update_transaction_status(
     
     return result
 
+class GroupUpdateRequest(BaseModel):
+    group_id: str
+    card_id: int
+    total_amount: float
+    description: str
+    date: date
+    category_id: Optional[int] = None
+    installments: int
+
+@router.patch("/update-group", response_model=dict)
+def update_group(request: GroupUpdateRequest, session: Session = Depends(get_session)):
+    updated_count = crud.update_transaction_group(session, request)
+    return {"message": f"Grupo atualizado com {updated_count} parcelas", "count": updated_count}
+
 @router.patch("/mark-previous-as-paid", response_model=dict)
 def mark_previous_transactions_as_paid(session: Session = Depends(get_session)):
     from datetime import date
     today = date.today()
     updated_count = crud.mark_previous_transactions_as_paid(session, today)
     return {"message": f"{updated_count} transações marcadas como pagas", "count": updated_count}
+
+@router.delete("/delete-group/{group_id}", status_code=204)
+def delete_group(group_id: str, session: Session = Depends(get_session)):
+    deleted_count = crud.delete_transaction_group(session, group_id)
+    if deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return None
 
 @router.delete("/{transaction_id}", status_code=204)
 def delete_transaction(transaction_id: int, session: Session = Depends(get_session)):

@@ -62,6 +62,53 @@ def migrate_database():
         except Exception as e:
             print(f"Erro na migração: {e}")
     
+    # Migração para categorias
+    try:
+        # Verificar se a tabela category já existe
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='category'")
+        if not cursor.fetchone():
+            cursor.execute("""
+                CREATE TABLE category (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR NOT NULL UNIQUE,
+                    color VARCHAR DEFAULT '#007bff',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+            conn.commit()
+            print("Migração concluída: tabela category criada")
+        
+        # Verificar se a coluna category_id já existe na tabela transaction
+        cursor.execute('PRAGMA table_info("transaction")')
+        transaction_columns_updated = [column[1] for column in cursor.fetchall()]
+        
+        if 'category_id' not in transaction_columns_updated:
+            cursor.execute('ALTER TABLE "transaction" ADD COLUMN category_id INTEGER')
+            conn.commit()
+            print("Migração concluída: coluna category_id adicionada")
+        
+        # Verificar e adicionar colunas de agrupamento
+        cursor.execute('PRAGMA table_info("transaction")')
+        transaction_columns_final = [column[1] for column in cursor.fetchall()]
+        
+        if 'group_id' not in transaction_columns_final:
+            cursor.execute('ALTER TABLE "transaction" ADD COLUMN group_id VARCHAR')
+            conn.commit()
+            print("Migração concluída: coluna group_id adicionada")
+        
+        if 'installment_number' not in transaction_columns_final:
+            cursor.execute('ALTER TABLE "transaction" ADD COLUMN installment_number INTEGER')
+            conn.commit()
+            print("Migração concluída: coluna installment_number adicionada")
+        
+        if 'total_installments' not in transaction_columns_final:
+            cursor.execute('ALTER TABLE "transaction" ADD COLUMN total_installments INTEGER')
+            conn.commit()
+            print("Migração concluída: coluna total_installments adicionada")
+            
+    except Exception as e:
+        print(f"Erro na migração de categorias: {e}")
+    
     conn.close()
 
 if __name__ == "__main__":
