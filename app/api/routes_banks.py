@@ -14,8 +14,7 @@ def list_banks(session: Session = Depends(get_session)):
         BankResponse(
             id=bank.id,
             name=bank.name,
-            initial_balance=bank.initial_balance,
-            current_balance=crud.calculate_bank_balance(session, bank.id)
+            current_balance=bank.current_balance
         )
         for bank in banks
     ]
@@ -27,8 +26,7 @@ def create_bank(bank: BankCreate, session: Session = Depends(get_session)):
         return BankResponse(
             id=db_bank.id,
             name=db_bank.name,
-            initial_balance=db_bank.initial_balance,
-            current_balance=db_bank.initial_balance
+            current_balance=db_bank.current_balance
         )
     except Exception:
         raise HTTPException(status_code=400, detail="Bank name already exists")
@@ -42,8 +40,7 @@ def get_bank(bank_id: int, session: Session = Depends(get_session)):
     return BankResponse(
         id=bank.id,
         name=bank.name,
-        initial_balance=bank.initial_balance,
-        current_balance=crud.calculate_bank_balance(session, bank.id)
+        current_balance=bank.current_balance
     )
 
 @router.put("/{bank_id}", response_model=BankResponse)
@@ -55,8 +52,7 @@ def update_bank(bank_id: int, bank_update: BankUpdate, session: Session = Depend
     return BankResponse(
         id=bank.id,
         name=bank.name,
-        initial_balance=bank.initial_balance,
-        current_balance=crud.calculate_bank_balance(session, bank.id)
+        current_balance=bank.current_balance
     )
 
 @router.delete("/{bank_id}")

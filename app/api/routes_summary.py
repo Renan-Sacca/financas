@@ -16,13 +16,12 @@ def get_summary(session: Session = Depends(get_session)):
     total_balance = 0.0
     
     for bank in banks:
-        balance = crud.calculate_bank_balance(session, bank.id)
         bank_summaries.append(BankSummary(
             bank_id=bank.id,
             bank_name=bank.name,
-            balance=balance
+            balance=bank.current_balance
         ))
-        total_balance += balance
+        total_balance += bank.current_balance
     
     return Summary(
         banks=bank_summaries,

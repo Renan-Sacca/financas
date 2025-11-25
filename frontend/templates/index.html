@@ -201,7 +201,7 @@
                                 </div>
                                 <div class="col-md-6">
                                     <div class="mb-3">
-                                        <label for="initial-balance" class="form-label">Saldo Inicial</label>
+                                        <label for="initial-balance" class="form-label">Saldo Atual</label>
                                         <input type="number" step="0.01" class="form-control" id="initial-balance" value="0">
                                     </div>
                                 </div>
@@ -500,6 +500,35 @@
                 <button class="btn btn-primary" onclick="showTransferForm()">Novo Depósito</button>
             </div>
             
+            <!-- Filtros -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6>Filtros</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="deposit-filter-date-from" class="form-label">Data Inicial</label>
+                            <input type="date" class="form-control" id="deposit-filter-date-from">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="deposit-filter-date-to" class="form-label">Data Final</label>
+                            <input type="date" class="form-control" id="deposit-filter-date-to">
+                        </div>
+                        <div class="col-md-3">
+                            <label for="deposit-filter-bank" class="form-label">Banco</label>
+                            <select class="form-select" id="deposit-filter-bank">
+                                <option value="">Todos os bancos</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 d-flex align-items-end gap-2">
+                            <button class="btn btn-primary" onclick="applyDepositFilters()">Aplicar</button>
+                            <button class="btn btn-outline-secondary" onclick="clearDepositFilters()">Limpar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
             <div id="transfer-form-section" style="display: none;">
                 <div class="card mb-4">
                     <div class="card-header">
@@ -555,6 +584,7 @@
                                     <th>Banco</th>
                                     <th>Descrição</th>
                                     <th>Valor</th>
+                                    <th>Ações</th>
                                 </tr>
                             </thead>
                             <tbody id="transfers-list">
@@ -642,7 +672,7 @@
         function toggleInstallments(){const select=document.getElementById('card-select');const field=document.getElementById('installments-field');if(select.value){fetch('/api/cards/').then(r=>r.json()).then(cards=>{const card=cards.find(c=>c.id==select.value);field.style.display=card&&card.type==='credit'?'block':'none';});}else{field.style.display='none';}}
         function showTransferForm(){document.getElementById('transfer-form-section').style.display='block';}
         function hideTransferForm(){document.getElementById('transfer-form-section').style.display='none';}
-        function editBank(id){fetch('/api/banks/'+id).then(r=>r.json()).then(b=>{document.getElementById('bank-form-section').style.display='block';document.getElementById('bank-name').value=b.name;document.getElementById('initial-balance').value=b.initial_balance;});}
+        function editBank(id){fetch('/api/banks/'+id).then(r=>r.json()).then(b=>{document.getElementById('bank-form-section').style.display='block';document.getElementById('bank-name').value=b.name;document.getElementById('initial-balance').value=b.current_balance;});
         function deleteBank(id){if(confirm('Excluir banco?'))fetch('/api/banks/'+id,{method:'DELETE'}).then(()=>location.reload());}
         function editCard(id){fetch('/api/cards/').then(r=>r.json()).then(cards=>{const card=cards.find(c=>c.id==id);if(card){document.getElementById('card-form-section').style.display='block';document.getElementById('card-form-title').textContent='Editar Cartão';document.getElementById('card-id').value=card.id;document.getElementById('card-bank-select').value=card.bank_id;document.getElementById('card-name').value=card.name;document.getElementById('card-type').value=card.type;document.getElementById('card-limit').value=card.limit_amount||'';document.getElementById('card-due-day').value=card.due_day||'';}});}
         function deleteCard(id){if(confirm('Excluir cartão?'))fetch('/api/cards/'+id,{method:'DELETE'}).then(()=>location.reload());}

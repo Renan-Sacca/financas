@@ -103,7 +103,7 @@ function editBank(bankId) {
             document.getElementById('bank-form-title').textContent = 'Editar Banco';
             document.getElementById('bank-id').value = bank.id;
             document.getElementById('bank-name').value = bank.name;
-            document.getElementById('initial-balance').value = bank.initial_balance;
+            document.getElementById('initial-balance').value = bank.current_balance;
         });
 }
 
@@ -179,13 +179,13 @@ async function handleBankSubmit(e) {
             response = await fetch(`${API_BASE}/banks/${bankId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, initial_balance: initialBalance })
+                body: JSON.stringify({ name, current_balance: initialBalance })
             });
         } else {
             response = await fetch(`${API_BASE}/banks/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, initial_balance: initialBalance })
+                body: JSON.stringify({ name, current_balance: initialBalance })
             });
         }
         
@@ -514,7 +514,7 @@ async function loadBanks() {
                         <div class="d-flex justify-content-between align-items-center">
                             <div>
                                 <h6>${bank.name}</h6>
-                                <small class="text-muted">Saldo inicial: R$ ${bank.initial_balance.toFixed(2)}</small>
+                                <small class="text-muted">Saldo atual</small>
                             </div>
                             <div class="text-end">
                                 <div class="${balanceClass} h5">R$ ${bank.current_balance.toFixed(2)}</div>
@@ -1282,14 +1282,24 @@ async function loadBanksForDeposit() {
 
 async function loadTransfers() {
     try {
-        const response = await fetch('/api/deposits/');
+        const params = new URLSearchParams();
+        const dateFrom = document.getElementById('deposit-filter-date-from')?.value;
+        const dateTo = document.getElementById('deposit-filter-date-to')?.value;
+        const bankId = document.getElementById('deposit-filter-bank')?.value;
+        
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        if (bankId) params.append('bank_id', bankId);
+        
+        const url = '/api/deposits/' + (params.toString() ? '?' + params.toString() : '');
+        const response = await fetch(url);
         const deposits = await response.json();
         
         const tbody = document.getElementById('transfers-list');
         tbody.innerHTML = '';
         
         if (deposits.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="4">Nenhum depósito encontrado</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5">Nenhum depósito encontrado</td></tr>';
             return;
         }
         
@@ -1300,9 +1310,25 @@ async function loadTransfers() {
                 <td>${deposit.bank_name}</td>
                 <td>${deposit.description}</td>
                 <td class="text-success">R$ ${deposit.amount.toFixed(2)}</td>
+                <td>
+                    <button class="btn btn-sm btn-outline-danger" onclick="deleteDeposit(${deposit.id})" title="Excluir">🗑️</button>
+                </td>
             `;
             tbody.appendChild(row);
         });
+        
+        const banksResponse = await fetch('/api/banks/');
+        const banks = await banksResponse.json();
+        
+        const bankFilterSelect = document.getElementById('deposit-filter-bank');
+        if (bankFilterSelect && bankFilterSelect.children.length <= 1) {
+            banks.forEach(bank => {
+                const option = document.createElement('option');
+                option.value = bank.id;
+                option.textContent = bank.name;
+                bankFilterSelect.appendChild(option);
+            });
+        }
         
     } catch (error) {
         console.error('Erro ao carregar depósitos:', error);
@@ -1693,6 +1719,43 @@ function clearCategoryPieFilters() {
     loadCategoryPieChart();
 }
 
+async function togglePayment(transactionId) {
+    try {
+        const response = await fetch(`${API_BASE}/transactions/${transactionId}/toggle-payment`, {
+            method: 'PATCH'
+        });
+        
+        if (response.ok) {
+            loadData();
+        } else {
+            alert('Erro ao alterar status da transação');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao alterar status da transação');
+    }
+}
+
+async function deleteTransaction(transactionId) {
+    if (!confirm('Tem certeza que deseja excluir esta transação?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/transactions/${transactionId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadData();
+            alert('Transação excluída com sucesso!');
+        } else {
+            alert('Erro ao excluir transação');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao excluir transação');
+    }
+}
+
 // Expor funções globalmente
 window.applyDashboardFilters = applyDashboardFilters;
 window.clearDashboardFilters = clearDashboardFilters;
@@ -1711,3 +1774,40 @@ window.editGroup = editGroup;
 window.saveEdit = saveEdit;
 window.toggleEditInstallments = toggleEditInstallments;
 window.deleteGroup = deleteGroup;
+window.togglePayment = togglePayment;
+window.deleteTransaction = deleteTransaction;
+
+async function deleteDeposit(depositId) {
+    if (!confirm('Tem certeza que deseja excluir este depósito?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/deposits/${depositId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadData();
+            alert('Depósito excluído com sucesso!');
+        } else {
+            alert('Erro ao excluir depósito');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao excluir depósito');
+    }
+}
+
+function applyDepositFilters() {
+    loadTransfers();
+}
+
+function clearDepositFilters() {
+    document.getElementById('deposit-filter-date-from').value = '';
+    document.getElementById('deposit-filter-date-to').value = '';
+    document.getElementById('deposit-filter-bank').value = '';
+    loadTransfers();
+}
+
+window.deleteDeposit = deleteDeposit;
+window.applyDepositFilters = applyDepositFilters;
+window.clearDepositFilters = clearDepositFilters;

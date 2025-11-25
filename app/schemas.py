@@ -5,16 +5,15 @@ from app.models import CardType, TransactionType
 
 class BankCreate(BaseModel):
     name: str
-    initial_balance: Optional[float] = 0.0
+    current_balance: Optional[float] = 0.0
 
 class BankUpdate(BaseModel):
     name: Optional[str] = None
-    initial_balance: Optional[float] = None
+    current_balance: Optional[float] = None
 
 class BankResponse(BaseModel):
     id: int
     name: str
-    initial_balance: float
     current_balance: float
 
 class CardCreate(BaseModel):

@@ -2,7 +2,7 @@ import sqlite3
 import os
 
 def migrate_database():
-    db_path = "/app/data/finance.db"
+    db_path = "data/finance.db"
     
     if not os.path.exists(db_path):
         return
@@ -108,6 +108,21 @@ def migrate_database():
             
     except Exception as e:
         print(f"Erro na migração de categorias: {e}")
+    
+    # Migração para current_balance
+    cursor.execute('PRAGMA table_info(bank)')
+    bank_columns = [column[1] for column in cursor.fetchall()]
+    
+    if 'current_balance' not in bank_columns:
+        try:
+            cursor.execute('ALTER TABLE bank ADD COLUMN current_balance REAL DEFAULT 0.0')
+            # Copiar initial_balance para current_balance se existir
+            if 'initial_balance' in bank_columns:
+                cursor.execute('UPDATE bank SET current_balance = initial_balance')
+            conn.commit()
+            print("Migração concluída: coluna current_balance adicionada")
+        except Exception as e:
+            print(f"Erro na migração de current_balance: {e}")
     
     conn.close()
 

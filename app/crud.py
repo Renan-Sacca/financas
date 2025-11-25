@@ -140,26 +140,16 @@ def create_transfer(session: Session, transfer: TransferCreate) -> bool:
     session.commit()
     return True
 
-def calculate_bank_balance(session: Session, bank_id: int) -> float:
+def update_bank_balance(session: Session, bank_id: int, amount: float, is_adding: bool):
+    """Atualiza o saldo atual do banco diretamente"""
     bank = session.get(Bank, bank_id)
-    if not bank:
-        return 0.0
-    
-    balance = bank.initial_balance
-    
-    # Buscar todas as transações dos cartões deste banco
-    transactions = session.exec(
-        select(Transaction).join(Card).where(Card.bank_id == bank_id)
-    ).all()
-    
-    for transaction in transactions:
-        if transaction.is_paid:  # Só considera transações pagas
-            if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
-                balance -= transaction.amount
-            elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
-                balance += transaction.amount
-    
-    return balance
+    if bank:
+        if is_adding:
+            bank.current_balance += amount
+        else:
+            bank.current_balance -= amount
+        session.commit()
+        session.refresh(bank)
 
 def get_transaction(session: Session, transaction_id: int) -> Optional[Transaction]:
     return session.get(Transaction, transaction_id)
@@ -178,6 +168,22 @@ def update_transaction(session: Session, transaction_id: int, transaction_update
 def toggle_transaction_payment(session: Session, transaction_id: int) -> Optional[Transaction]:
     transaction = session.get(Transaction, transaction_id)
     if transaction:
+        # Buscar o banco através do cartão
+        card = session.get(Card, transaction.card_id)
+        if card:
+            # Se está mudando para pago
+            if not transaction.is_paid:
+                if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
+                    update_bank_balance(session, card.bank_id, transaction.amount, False)
+                elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
+                    update_bank_balance(session, card.bank_id, transaction.amount, True)
+            # Se está mudando para pendente
+            else:
+                if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
+                    update_bank_balance(session, card.bank_id, transaction.amount, True)
+                elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
+                    update_bank_balance(session, card.bank_id, transaction.amount, False)
+        
         transaction.is_paid = not transaction.is_paid
         session.commit()
         session.refresh(transaction)
@@ -188,6 +194,23 @@ def bulk_update_transaction_status(session: Session, transaction_ids: List[int],
     transactions = session.exec(select(Transaction).where(Transaction.id.in_(transaction_ids))).all()
     if transactions:
         for transaction in transactions:
+            # Atualizar saldo do banco se o status mudou
+            if transaction.is_paid != is_paid:
+                card = session.get(Card, transaction.card_id)
+                if card:
+                    # Se está mudando para pago
+                    if is_paid:
+                        if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
+                            update_bank_balance(session, card.bank_id, transaction.amount, False)
+                        elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
+                            update_bank_balance(session, card.bank_id, transaction.amount, True)
+                    # Se está mudando para pendente
+                    else:
+                        if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
+                            update_bank_balance(session, card.bank_id, transaction.amount, True)
+                        elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
+                            update_bank_balance(session, card.bank_id, transaction.amount, False)
+            
             transaction.is_paid = is_paid
         session.commit()
         for transaction in transactions:
@@ -269,6 +292,14 @@ def mark_previous_transactions_as_paid(session: Session, current_date) -> int:
     
     count = 0
     for transaction in transactions:
+        # Atualizar saldo do banco
+        card = session.get(Card, transaction.card_id)
+        if card:
+            if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
+                update_bank_balance(session, card.bank_id, transaction.amount, False)
+            elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
+                update_bank_balance(session, card.bank_id, transaction.amount, True)
+        
         transaction.is_paid = True
         count += 1
     
