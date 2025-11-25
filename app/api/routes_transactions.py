@@ -166,6 +166,13 @@ def bulk_update_transaction_status(
     
     return result
 
+@router.patch("/mark-previous-as-paid", response_model=dict)
+def mark_previous_transactions_as_paid(session: Session = Depends(get_session)):
+    from datetime import date
+    today = date.today()
+    updated_count = crud.mark_previous_transactions_as_paid(session, today)
+    return {"message": f"{updated_count} transações marcadas como pagas", "count": updated_count}
+
 @router.delete("/{transaction_id}", status_code=204)
 def delete_transaction(transaction_id: int, session: Session = Depends(get_session)):
     transaction = crud.get_transaction(session, transaction_id)

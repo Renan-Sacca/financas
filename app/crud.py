@@ -195,6 +195,23 @@ def bulk_update_transaction_status(session: Session, transaction_ids: List[int],
         return transactions
     return []
 
+def mark_previous_transactions_as_paid(session: Session, current_date) -> int:
+    from datetime import date
+    transactions = session.exec(
+        select(Transaction).where(
+            Transaction.date < current_date,
+            Transaction.is_paid == False
+        )
+    ).all()
+    
+    count = 0
+    for transaction in transactions:
+        transaction.is_paid = True
+        count += 1
+    
+    session.commit()
+    return count
+
 def delete_transaction(session: Session, transaction_id: int) -> bool:
     transaction = session.get(Transaction, transaction_id)
     if transaction:

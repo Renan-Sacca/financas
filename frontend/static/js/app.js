@@ -336,9 +336,14 @@ async function handleTransactionSubmit(e) {
                 });
             }
             
-            hideTransactionForm();
+            // Limpar apenas campos específicos, manter cartão e data
+            document.getElementById('amount').value = '';
+            document.getElementById('description').value = '';
+            document.getElementById('installments').value = '1';
             loadData();
             alert(`Compra ${installments > 1 ? `parcelada em ${installments}x` : ''} adicionada com sucesso!`);
+            // Focar no campo valor para próxima entrada
+            document.getElementById('amount').focus();
         }
     } catch (error) {
         console.error('Erro:', error);
@@ -840,9 +845,36 @@ async function bulkUpdateStatus(isPaid) {
     }
 }
 
+// Função para marcar compras anteriores como pagas
+async function markPreviousAsPaid() {
+    if (!confirm('Deseja marcar todas as compras de datas anteriores ao dia atual como pagas?')) {
+        return;
+    }
+    
+    try {
+        const response = await fetch(`${API_BASE}/transactions/mark-previous-as-paid`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            clearSelection();
+            loadData();
+            alert(result.message);
+        } else {
+            alert('Erro ao marcar compras como pagas');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao marcar compras como pagas');
+    }
+}
+
 // Expor funções globalmente
 window.bulkUpdateStatus = bulkUpdateStatus;
 window.clearSelection = clearSelection;
+window.markPreviousAsPaid = markPreviousAsPaid;
 
 async function loadBanksForDeposit() {
     try {
