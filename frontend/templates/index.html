@@ -16,7 +16,7 @@
                 <a class="nav-link" href="#" onclick="showSection('banks')">Bancos</a>
                 <a class="nav-link" href="#" onclick="showSection('cards')">Cartões</a>
                 <a class="nav-link" href="#" onclick="showSection('transactions')">Transações</a>
-                <a class="nav-link" href="#" onclick="showSection('transfers')">Transferências</a>
+                <a class="nav-link" href="#" onclick="showSection('transfers')">Depósitos</a>
             </div>
         </div>
     </nav>
@@ -273,13 +273,21 @@
                             <label for="filter-date-to" class="form-label">Data Final</label>
                             <input type="date" class="form-control" id="filter-date-to">
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-2">
                             <label for="filter-bank" class="form-label">Banco</label>
                             <select class="form-select" id="filter-bank">
                                 <option value="">Todos os bancos</option>
                             </select>
                         </div>
-                        <div class="col-md-3 d-flex align-items-end gap-2">
+                        <div class="col-md-2">
+                            <label for="filter-status" class="form-label">Status</label>
+                            <select class="form-select" id="filter-status">
+                                <option value="">Todos</option>
+                                <option value="paid">Pago</option>
+                                <option value="pending">Pendente</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end gap-2">
                             <button class="btn btn-primary" onclick="applyFilters()">Aplicar Filtros</button>
                             <button class="btn btn-outline-secondary" onclick="clearFilters()">Limpar</button>
                         </div>
@@ -359,7 +367,8 @@
                                     <th>
                                         <input type="checkbox" id="select-all" onchange="toggleSelectAll()">
                                     </th>
-                                    <th>Data</th>
+                                    <th>Data Compra</th>
+                                    <th>Data Fatura</th>
                                     <th>Banco</th>
                                     <th>Cartão</th>
                                     <th>Descrição</th>
@@ -378,57 +387,49 @@
             </div>
         </div>
 
-        <!-- Transferências -->
+        <!-- Depósitos -->
         <div id="transfers-section" class="section" style="display: none;">
             <div class="d-flex justify-content-between align-items-center mb-4">
-                <h2>Transferências</h2>
-                <button class="btn btn-primary" onclick="showTransferForm()">Nova Transferência</button>
+                <h2>Depósitos</h2>
+                <button class="btn btn-primary" onclick="showTransferForm()">Novo Depósito</button>
             </div>
             
             <div id="transfer-form-section" style="display: none;">
                 <div class="card mb-4">
                     <div class="card-header">
-                        <h5>Nova Transferência</h5>
+                        <h5>Novo Depósito</h5>
                     </div>
                     <div class="card-body">
                         <form id="transfer-form">
                             <div class="row">
                                 <div class="col-md-3">
                                     <div class="mb-3">
-                                        <label for="from-bank" class="form-label">Banco Origem</label>
-                                        <select class="form-select" id="from-bank" required>
+                                        <label for="deposit-bank" class="form-label">Banco</label>
+                                        <select class="form-select" id="deposit-bank" required>
                                             <option value="">Selecione o banco</option>
                                         </select>
                                     </div>
                                 </div>
                                 <div class="col-md-3">
                                     <div class="mb-3">
-                                        <label for="to-bank" class="form-label">Banco Destino</label>
-                                        <select class="form-select" id="to-bank" required>
-                                            <option value="">Selecione o banco</option>
-                                        </select>
+                                        <label for="deposit-amount" class="form-label">Valor</label>
+                                        <input type="number" step="0.01" class="form-control" id="deposit-amount" required>
                                     </div>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <div class="mb-3">
-                                        <label for="transfer-amount" class="form-label">Valor</label>
-                                        <input type="number" step="0.01" class="form-control" id="transfer-amount" required>
+                                        <label for="deposit-date" class="form-label">Data</label>
+                                        <input type="date" class="form-control" id="deposit-date" required>
                                     </div>
                                 </div>
-                                <div class="col-md-2">
+                                <div class="col-md-3">
                                     <div class="mb-3">
-                                        <label for="transfer-date" class="form-label">Data</label>
-                                        <input type="date" class="form-control" id="transfer-date" required>
-                                    </div>
-                                </div>
-                                <div class="col-md-2">
-                                    <div class="mb-3">
-                                        <label for="transfer-description" class="form-label">Descrição</label>
-                                        <input type="text" class="form-control" id="transfer-description" required>
+                                        <label for="deposit-description" class="form-label">Descrição</label>
+                                        <input type="text" class="form-control" id="deposit-description" required>
                                     </div>
                                 </div>
                             </div>
-                            <button type="submit" class="btn btn-success me-2">Transferir</button>
+                            <button type="submit" class="btn btn-success me-2">Depositar</button>
                             <button type="button" class="btn btn-secondary" onclick="hideTransferForm()">Cancelar</button>
                         </form>
                     </div>
@@ -437,7 +438,7 @@
             
             <div class="card">
                 <div class="card-header">
-                    <h5>Histórico de Transferências</h5>
+                    <h5>Histórico de Depósitos</h5>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
@@ -445,8 +446,7 @@
                             <thead>
                                 <tr>
                                     <th>Data</th>
-                                    <th>Origem</th>
-                                    <th>Destino</th>
+                                    <th>Banco</th>
                                     <th>Descrição</th>
                                     <th>Valor</th>
                                 </tr>

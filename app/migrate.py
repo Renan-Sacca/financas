@@ -54,6 +54,14 @@ def migrate_database():
         except Exception as e:
             print(f"Erro na migração: {e}")
     
+    if 'purchase_date' not in transaction_columns:
+        try:
+            cursor.execute('ALTER TABLE "transaction" ADD COLUMN purchase_date DATE')
+            conn.commit()
+            print("Migração concluída: coluna purchase_date adicionada")
+        except Exception as e:
+            print(f"Erro na migração: {e}")
+    
     conn.close()
 
 if __name__ == "__main__":

@@ -31,6 +31,7 @@ def create_transaction(transaction: TransactionCreate, session: Session = Depend
         type=db_transaction.type,
         description=db_transaction.description,
         date=db_transaction.date,
+        purchase_date=db_transaction.purchase_date,
         is_paid=db_transaction.is_paid,
         card_name=card.name,
         card_type=card.type,
@@ -44,9 +45,10 @@ def list_transactions(
     card_id: Optional[int] = Query(None),
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
+    status: Optional[str] = Query(None),
     session: Session = Depends(get_session)
 ):
-    transactions = crud.get_transactions(session, bank_id, card_id, date_from, date_to)
+    transactions = crud.get_transactions(session, bank_id, card_id, date_from, date_to, status)
     
     result = []
     for transaction in transactions:
@@ -65,6 +67,7 @@ def list_transactions(
             type=transaction.type,
             description=transaction.description,
             date=transaction.date,
+            purchase_date=transaction.purchase_date,
             is_paid=transaction.is_paid,
             card_name=card.name,
             card_type=card.type,

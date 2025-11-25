@@ -24,6 +24,8 @@ function showSection(sectionName) {
         }, 100);
     } else if (sectionName === 'dashboard') {
         loadDashboard();
+    } else if (sectionName === 'transfers') {
+        loadTransfers();
     } else if (typeof loadData === 'function') {
         loadData();
     }
@@ -67,7 +69,8 @@ function showTransferForm() {
     if (section) {
         section.style.display = 'block';
         document.getElementById('transfer-form').reset();
-        document.getElementById('transfer-date').value = new Date().toISOString().split('T')[0];
+        document.getElementById('deposit-date').value = new Date().toISOString().split('T')[0];
+        loadBanksForDeposit();
     }
 }
 
@@ -132,6 +135,11 @@ document.addEventListener('DOMContentLoaded', function() {
     if (transactionForm) {
         transactionForm.addEventListener('submit', handleTransactionSubmit);
     }
+    
+    const transferForm = document.getElementById('transfer-form');
+    if (transferForm) {
+        transferForm.addEventListener('submit', handleDepositSubmit);
+    }
 });
 
 
@@ -170,6 +178,39 @@ async function handleBankSubmit(e) {
     } catch (error) {
         console.error('Erro:', error);
         alert('Erro ao salvar banco');
+    }
+}
+
+async function handleDepositSubmit(e) {
+    e.preventDefault();
+    
+    const bankId = parseInt(document.getElementById('deposit-bank').value);
+    const amount = parseFloat(document.getElementById('deposit-amount').value);
+    const description = document.getElementById('deposit-description').value;
+    const date = document.getElementById('deposit-date').value;
+    
+    try {
+        const response = await fetch('/api/deposits/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                bank_id: bankId,
+                amount: amount,
+                description: description,
+                date: date
+            })
+        });
+        
+        if (response.ok) {
+            hideTransferForm();
+            loadData();
+            alert('Depósito registrado com sucesso!');
+        } else {
+            alert('Erro ao registrar depósito');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao registrar depósito');
     }
 }
 
@@ -245,14 +286,38 @@ async function handleTransactionSubmit(e) {
                 alert('Erro ao atualizar compra');
             }
         } else {
-            // Criar nova transação com parcelamento
+            // Buscar dados do cartão para calcular vencimento
+            const cardResponse = await fetch(`${API_BASE}/cards/`);
+            const cards = await cardResponse.json();
+            const selectedCard = cards.find(c => c.id === cardId);
+            
             const installmentAmount = totalAmount / installments;
-            const purchaseDate = new Date(date);
+            const [year, month, day] = date.split('-').map(Number);
+            
+            // Calcular primeira data de vencimento
+            let firstDueYear = year;
+            let firstDueMonth = month;
+            const dueDay = selectedCard && selectedCard.due_day ? selectedCard.due_day : 1;
+            
+            // Se a compra foi depois do vencimento, vai para o próximo mês
+            if (day > dueDay) {
+                firstDueMonth += 1;
+                if (firstDueMonth > 12) {
+                    firstDueMonth = 1;
+                    firstDueYear += 1;
+                }
+            }
             
             for (let i = 0; i < installments; i++) {
-                const installmentDate = new Date(purchaseDate);
-                installmentDate.setMonth(installmentDate.getMonth() + i);
+                let installmentYear = firstDueYear;
+                let installmentMonth = firstDueMonth + i;
                 
+                while (installmentMonth > 12) {
+                    installmentMonth -= 12;
+                    installmentYear += 1;
+                }
+                
+                const installmentDateStr = `${installmentYear}-${String(installmentMonth).padStart(2, '0')}-${String(dueDay).padStart(2, '0')}`;
                 const installmentDescription = installments > 1 
                     ? `${description} (${i + 1}/${installments})`
                     : description;
@@ -265,7 +330,8 @@ async function handleTransactionSubmit(e) {
                         amount: installmentAmount, 
                         type: 'expense', 
                         description: installmentDescription, 
-                        date: installmentDate.toISOString().split('T')[0]
+                        date: installmentDateStr,
+                        purchase_date: date
                     })
                 });
             }
@@ -463,10 +529,12 @@ async function loadTransactionsData() {
         const dateFrom = document.getElementById('filter-date-from')?.value;
         const dateTo = document.getElementById('filter-date-to')?.value;
         const bankId = document.getElementById('filter-bank')?.value;
+        const status = document.getElementById('filter-status')?.value;
         
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
         if (bankId) params.append('bank_id', bankId);
+        if (status) params.append('status', status);
         
         const url = '/api/transactions/' + (params.toString() ? '?' + params.toString() : '');
         const response = await fetch(url);
@@ -476,15 +544,19 @@ async function loadTransactionsData() {
         tbody.innerHTML = '';
         
         if (transactions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="9">Nenhuma transação encontrada</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="10">Nenhuma transação encontrada</td></tr>';
             return;
         }
         
         transactions.forEach(t => {
+            const purchaseDate = t.purchase_date ? new Date(t.purchase_date + 'T12:00:00').toLocaleDateString('pt-BR') : '-';
+            const billDate = new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR');
+            
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td><input type="checkbox" class="transaction-checkbox" value="${t.id}" onchange="toggleTransactionSelection(${t.id})"></td>
-                <td>${new Date(t.date).toLocaleDateString('pt-BR')}</td>
+                <td>${purchaseDate}</td>
+                <td>${billDate}</td>
                 <td>${t.bank_name}</td>
                 <td>${t.card_name}</td>
                 <td>${t.description}</td>
@@ -598,6 +670,7 @@ function clearFiltersInline() {
     document.getElementById('filter-date-from').value = '';
     document.getElementById('filter-date-to').value = '';
     document.getElementById('filter-bank').value = '';
+    document.getElementById('filter-status').value = '';
     clearSelection();
     loadTransactionsData();
     loadTransactionFilters();
@@ -771,8 +844,53 @@ async function bulkUpdateStatus(isPaid) {
 window.bulkUpdateStatus = bulkUpdateStatus;
 window.clearSelection = clearSelection;
 
+async function loadBanksForDeposit() {
+    try {
+        const response = await fetch('/api/banks/');
+        const banks = await response.json();
+        
+        const bankSelect = document.getElementById('deposit-bank');
+        if (bankSelect) {
+            bankSelect.innerHTML = '<option value="">Selecione o banco</option>';
+            banks.forEach(bank => {
+                const option = document.createElement('option');
+                option.value = bank.id;
+                option.textContent = bank.name;
+                bankSelect.appendChild(option);
+            });
+        }
+    } catch (error) {
+        console.error('Erro ao carregar bancos:', error);
+    }
+}
+
 async function loadTransfers() {
-    // Implementar depois
+    try {
+        const response = await fetch('/api/deposits/');
+        const deposits = await response.json();
+        
+        const tbody = document.getElementById('transfers-list');
+        tbody.innerHTML = '';
+        
+        if (deposits.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4">Nenhum depósito encontrado</td></tr>';
+            return;
+        }
+        
+        deposits.forEach(deposit => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${new Date(deposit.date).toLocaleDateString('pt-BR')}</td>
+                <td>${deposit.bank_name}</td>
+                <td>${deposit.description}</td>
+                <td class="text-success">R$ ${deposit.amount.toFixed(2)}</td>
+            `;
+            tbody.appendChild(row);
+        });
+        
+    } catch (error) {
+        console.error('Erro ao carregar depósitos:', error);
+    }
 }
 
 // Funções do Dashboard

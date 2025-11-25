@@ -43,6 +43,7 @@ class TransactionCreate(BaseModel):
     type: TransactionType = TransactionType.expense
     description: str
     date: date
+    purchase_date: Optional[date] = None
     transfer_to_bank_id: Optional[int] = None
 
 class TransferCreate(BaseModel):
@@ -59,6 +60,7 @@ class TransactionResponse(BaseModel):
     type: TransactionType
     description: str
     date: date
+    purchase_date: Optional[date] = None
     is_paid: bool
     card_name: str
     card_type: CardType

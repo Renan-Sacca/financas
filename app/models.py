@@ -42,6 +42,7 @@ class Transaction(SQLModel, table=True):
     type: TransactionType = Field(default=TransactionType.expense)
     description: str
     date: date
+    purchase_date: Optional[date] = Field(default=None)
     is_paid: bool = Field(default=False)
     created_at: datetime = Field(default_factory=datetime.now)
     transfer_to_bank_id: Optional[int] = Field(default=None, foreign_key="bank.id")
