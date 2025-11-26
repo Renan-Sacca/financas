@@ -177,3 +177,59 @@ def get_category_expenses(
     } for category_name, total in category_data.items()]
     
     return sorted(result, key=lambda x: x["total"], reverse=True)
+
+@router.get("/credit-limits")
+def get_credit_limits(
+    bank_id: Optional[int] = Query(None),
+    session: Session = Depends(get_session)
+):
+    # Query para cartões de crédito com limite
+    query = select(Card, Bank).join(Bank).where(
+        Card.type == "credit",
+        Card.limit_amount.isnot(None),
+        Card.limit_amount > 0
+    )
+    
+    if bank_id:
+        query = query.where(Bank.id == bank_id)
+    
+    cards_with_limits = session.exec(query).all()
+    
+    result = []
+    total_limit_sum = 0
+    total_used_sum = 0
+    
+    for card, bank in cards_with_limits:
+        # Calcular valor usado (transações pendentes)
+        transactions_query = select(Transaction).where(
+            Transaction.card_id == card.id,
+            Transaction.type == "expense",
+            Transaction.is_paid == False
+        )
+        
+        pending_transactions = session.exec(transactions_query).all()
+        used_limit = sum(t.amount for t in pending_transactions)
+        available_limit = card.limit_amount - used_limit
+        
+        result.append({
+            "card_name": card.name,
+            "bank_name": bank.name,
+            "total_limit": card.limit_amount,
+            "used_limit": used_limit,
+            "available_limit": available_limit
+        })
+        
+        total_limit_sum += card.limit_amount
+        total_used_sum += used_limit
+    
+    # Adicionar totais
+    if result:
+        result.append({
+            "card_name": "TOTAL",
+            "bank_name": "",
+            "total_limit": total_limit_sum,
+            "used_limit": total_used_sum,
+            "available_limit": total_limit_sum - total_used_sum
+        })
+    
+    return result

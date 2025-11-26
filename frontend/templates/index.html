@@ -113,6 +113,30 @@
                 <div class="col-md-6">
                     <div class="card">
                         <div class="card-header">
+                            <h5>Limite de Crédito</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row mb-3">
+                                <div class="col-md-6">
+                                    <label for="credit-filter-bank" class="form-label">Banco</label>
+                                    <select class="form-select" id="credit-filter-bank">
+                                        <option value="">Todos os bancos</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 d-flex align-items-end gap-2">
+                                    <button class="btn btn-primary btn-sm" onclick="applyCreditFilters()">Aplicar</button>
+                                    <button class="btn btn-outline-secondary btn-sm" onclick="clearCreditFilters()">Limpar</button>
+                                </div>
+                            </div>
+                            <div style="height: 400px;">
+                                <canvas id="creditChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
                             <h5>Gastos por Cartão</h5>
                         </div>
                         <div class="card-body">
@@ -136,39 +160,42 @@
                                     <button class="btn btn-outline-secondary btn-sm" onclick="clearPieFilters()">Limpar</button>
                                 </div>
                             </div>
-                            <div style="height: 300px;">
+                            <div style="height: 400px;">
                                 <canvas id="cardPieChart"></canvas>
                             </div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
+            </div>
+            
+            <div class="row mb-4">
+                <div class="col-md-12">
                     <div class="card">
                         <div class="card-header">
                             <h5>Gastos por Categoria</h5>
                         </div>
                         <div class="card-body">
                             <div class="row mb-3">
-                                <div class="col-md-6">
+                                <div class="col-md-2">
                                     <label for="category-pie-filter-bank" class="form-label">Banco</label>
                                     <select class="form-select" id="category-pie-filter-bank">
                                         <option value="">Todos os bancos</option>
                                     </select>
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-2">
                                     <label for="category-pie-filter-date-from" class="form-label">Data Inicial</label>
                                     <input type="date" class="form-control" id="category-pie-filter-date-from">
                                 </div>
-                                <div class="col-md-6">
+                                <div class="col-md-2">
                                     <label for="category-pie-filter-date-to" class="form-label">Data Final</label>
                                     <input type="date" class="form-control" id="category-pie-filter-date-to">
                                 </div>
-                                <div class="col-md-6 d-flex align-items-end gap-2">
+                                <div class="col-md-2 d-flex align-items-end gap-2">
                                     <button class="btn btn-primary btn-sm" onclick="applyCategoryPieFilters()">Aplicar</button>
                                     <button class="btn btn-outline-secondary btn-sm" onclick="clearCategoryPieFilters()">Limpar</button>
                                 </div>
                             </div>
-                            <div style="height: 300px;">
+                            <div style="height: 400px;">
                                 <canvas id="categoryPieChart"></canvas>
                             </div>
                         </div>
@@ -672,7 +699,7 @@
         function toggleInstallments(){const select=document.getElementById('card-select');const field=document.getElementById('installments-field');if(select.value){fetch('/api/cards/').then(r=>r.json()).then(cards=>{const card=cards.find(c=>c.id==select.value);field.style.display=card&&card.type==='credit'?'block':'none';});}else{field.style.display='none';}}
         function showTransferForm(){document.getElementById('transfer-form-section').style.display='block';}
         function hideTransferForm(){document.getElementById('transfer-form-section').style.display='none';}
-        function editBank(id){fetch('/api/banks/'+id).then(r=>r.json()).then(b=>{document.getElementById('bank-form-section').style.display='block';document.getElementById('bank-name').value=b.name;document.getElementById('initial-balance').value=b.current_balance;});
+        function editBank(id){fetch('/api/banks/'+id).then(r=>r.json()).then(b=>{document.getElementById('bank-form-section').style.display='block';document.getElementById('bank-form-title').textContent='Editar Banco';document.getElementById('bank-id').value=b.id;document.getElementById('bank-name').value=b.name;document.getElementById('initial-balance').value=b.current_balance;});
         function deleteBank(id){if(confirm('Excluir banco?'))fetch('/api/banks/'+id,{method:'DELETE'}).then(()=>location.reload());}
         function editCard(id){fetch('/api/cards/').then(r=>r.json()).then(cards=>{const card=cards.find(c=>c.id==id);if(card){document.getElementById('card-form-section').style.display='block';document.getElementById('card-form-title').textContent='Editar Cartão';document.getElementById('card-id').value=card.id;document.getElementById('card-bank-select').value=card.bank_id;document.getElementById('card-name').value=card.name;document.getElementById('card-type').value=card.type;document.getElementById('card-limit').value=card.limit_amount||'';document.getElementById('card-due-day').value=card.due_day||'';}});}
         function deleteCard(id){if(confirm('Excluir cartão?'))fetch('/api/cards/'+id,{method:'DELETE'}).then(()=>location.reload());}

@@ -21,15 +21,12 @@ def list_banks(session: Session = Depends(get_session)):
 
 @router.post("/", response_model=BankResponse, status_code=201)
 def create_bank(bank: BankCreate, session: Session = Depends(get_session)):
-    try:
-        db_bank = crud.create_bank(session, bank)
-        return BankResponse(
-            id=db_bank.id,
-            name=db_bank.name,
-            current_balance=db_bank.current_balance
-        )
-    except Exception:
-        raise HTTPException(status_code=400, detail="Bank name already exists")
+    db_bank = crud.create_bank(session, bank)
+    return BankResponse(
+        id=db_bank.id,
+        name=db_bank.name,
+        current_balance=db_bank.current_balance
+    )
 
 @router.get("/{bank_id}", response_model=BankResponse)
 def get_bank(bank_id: int, session: Session = Depends(get_session)):

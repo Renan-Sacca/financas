@@ -37,10 +37,14 @@ function showBankForm() {
     document.getElementById('bank-form-section').style.display = 'block';
     document.getElementById('bank-form-title').textContent = 'Adicionar Banco';
     document.getElementById('bank-form').reset();
+    document.getElementById('bank-id').value = '';
 }
 
 function hideBankForm() {
     document.getElementById('bank-form-section').style.display = 'none';
+    document.getElementById('bank-form').reset();
+    document.getElementById('bank-id').value = '';
+    document.getElementById('bank-form-title').textContent = 'Adicionar Banco';
 }
 
 function showCardForm() {
@@ -167,34 +171,51 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Handlers dos formulários
 async function handleBankSubmit(e) {
+    console.log('handleBankSubmit chamada');
     e.preventDefault();
     
     const name = document.getElementById('bank-name').value;
     const initialBalance = parseFloat(document.getElementById('initial-balance').value) || 0;
     const bankId = document.getElementById('bank-id').value;
     
+    console.log('Dados do banco:', { name, initialBalance, bankId });
+    
     try {
         let response;
+        const payload = { name: name, current_balance: initialBalance };
+        console.log('Payload:', payload);
+        
         if (bankId) {
             response = await fetch(`${API_BASE}/banks/${bankId}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, current_balance: initialBalance })
+                body: JSON.stringify(payload)
             });
         } else {
             response = await fetch(`${API_BASE}/banks/`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name, current_balance: initialBalance })
+                body: JSON.stringify(payload)
             });
         }
         
         if (response.ok) {
+            document.getElementById('bank-form').reset();
+            document.getElementById('bank-id').value = '';
             hideBankForm();
             loadData();
             alert(bankId ? 'Banco atualizado!' : 'Banco adicionado!');
         } else {
-            alert('Erro ao salvar banco');
+            let errorMessage = 'Erro ao salvar banco';
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.detail || errorMessage;
+            } catch (e) {
+                const errorText = await response.text();
+                console.error('Erro da API (texto):', errorText);
+                errorMessage = `Erro ${response.status}: ${response.statusText}`;
+            }
+            alert(errorMessage);
         }
     } catch (error) {
         console.error('Erro:', error);
@@ -1344,6 +1365,7 @@ async function loadDashboard() {
     await loadExpenseChart();
     await loadCardPieChart();
     await loadCategoryPieChart();
+    await loadCreditChart();
 }
 
 async function loadYearFilter() {
@@ -1811,3 +1833,198 @@ function clearDepositFilters() {
 window.deleteDeposit = deleteDeposit;
 window.applyDepositFilters = applyDepositFilters;
 window.clearDepositFilters = clearDepositFilters;
+
+async function editCard(cardId) {
+    try {
+        const response = await fetch('/api/cards/');
+        const cards = await response.json();
+        const card = cards.find(c => c.id === cardId);
+        
+        if (card) {
+            document.getElementById('card-form-section').style.display = 'block';
+            document.getElementById('card-form-title').textContent = 'Editar Cartão';
+            document.getElementById('card-id').value = card.id;
+            document.getElementById('card-bank-select').value = card.bank_id;
+            document.getElementById('card-name').value = card.name;
+            document.getElementById('card-type').value = card.type;
+            document.getElementById('card-limit').value = card.limit_amount || '';
+            document.getElementById('card-due-day').value = card.due_day || '';
+        }
+    } catch (error) {
+        console.error('Erro ao carregar cartão:', error);
+        alert('Erro ao carregar dados do cartão');
+    }
+}
+
+async function deleteCard(cardId) {
+    if (!confirm('Tem certeza que deseja excluir este cartão?')) return;
+    
+    try {
+        const response = await fetch(`${API_BASE}/cards/${cardId}`, {
+            method: 'DELETE'
+        });
+        
+        if (response.ok) {
+            loadData();
+            alert('Cartão excluído com sucesso!');
+        } else {
+            alert('Erro ao excluir cartão');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao excluir cartão');
+    }
+}
+
+window.editCard = editCard;
+window.deleteCard = deleteCard;
+
+function toggleInstallments() {
+    const select = document.getElementById('card-select');
+    const field = document.getElementById('installments-field');
+    
+    if (select.value) {
+        fetch('/api/cards/')
+            .then(r => r.json())
+            .then(cards => {
+                const card = cards.find(c => c.id == select.value);
+                field.style.display = card && card.type === 'credit' ? 'block' : 'none';
+            })
+            .catch(error => {
+                console.error('Erro ao carregar cartões:', error);
+                field.style.display = 'none';
+            });
+    } else {
+        field.style.display = 'none';
+    }
+}
+
+window.toggleInstallments = toggleInstallments;
+
+let creditChart = null;
+
+async function loadCreditChart() {
+    try {
+        const params = new URLSearchParams();
+        const bankId = document.getElementById('credit-filter-bank')?.value;
+        const dateFrom = document.getElementById('credit-filter-date-from')?.value;
+        const dateTo = document.getElementById('credit-filter-date-to')?.value;
+        
+        if (bankId) params.append('bank_id', bankId);
+        if (dateFrom) params.append('date_from', dateFrom);
+        if (dateTo) params.append('date_to', dateTo);
+        
+        const url = '/api/summary/credit-limits' + (params.toString() ? '?' + params.toString() : '');
+        const response = await fetch(url);
+        const data = await response.json();
+        
+        const ctx = document.getElementById('creditChart').getContext('2d');
+        
+        if (creditChart) {
+            creditChart.destroy();
+        }
+        
+        if (data.length === 0) {
+            ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+            ctx.font = '14px Arial';
+            ctx.fillStyle = '#6c757d';
+            ctx.textAlign = 'center';
+            ctx.fillText('Nenhum cartão de crédito', ctx.canvas.width / 2, ctx.canvas.height / 2 - 10);
+            ctx.fillText('com limite encontrado', ctx.canvas.width / 2, ctx.canvas.height / 2 + 10);
+            return;
+        }
+        
+        const labels = data.map(item => item.card_name);
+        const usedData = data.map(item => item.used_limit);
+        const availableData = data.map(item => item.available_limit);
+        
+        // Destacar linha TOTAL
+        const backgroundColors = data.map(item => 
+            item.card_name === 'TOTAL' ? 'rgba(255, 193, 7, 0.8)' : 'rgba(255, 99, 132, 0.6)'
+        );
+        const availableColors = data.map(item => 
+            item.card_name === 'TOTAL' ? 'rgba(40, 167, 69, 0.8)' : 'rgba(75, 192, 192, 0.6)'
+        );
+        
+        creditChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Usado (R$)',
+                    data: usedData,
+                    backgroundColor: backgroundColors,
+                    borderWidth: 1
+                }, {
+                    label: 'Disponível (R$)',
+                    data: availableData,
+                    backgroundColor: availableColors,
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        stacked: true,
+                        ticks: {
+                            maxRotation: 45
+                        }
+                    },
+                    y: {
+                        stacked: true,
+                        beginAtZero: true,
+                        ticks: {
+                            callback: function(value) {
+                                return 'R$ ' + value.toLocaleString('pt-BR', { minimumFractionDigits: 0 });
+                            }
+                        }
+                    }
+                },
+                plugins: {
+                    legend: {
+                        position: 'top'
+                    },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return context.dataset.label + ': R$ ' + context.parsed.y.toLocaleString('pt-BR', { minimumFractionDigits: 2 });
+                            }
+                        }
+                    }
+                }
+            }
+        });
+        
+        // Carregar bancos para o filtro
+        const banksResponse = await fetch('/api/banks/');
+        const banks = await banksResponse.json();
+        
+        const bankFilterSelect = document.getElementById('credit-filter-bank');
+        if (bankFilterSelect && bankFilterSelect.children.length <= 1) {
+            banks.forEach(bank => {
+                const option = document.createElement('option');
+                option.value = bank.id;
+                option.textContent = bank.name;
+                bankFilterSelect.appendChild(option);
+            });
+        }
+        
+    } catch (error) {
+        console.error('Erro ao carregar gráfico de crédito:', error);
+    }
+}
+
+function applyCreditFilters() {
+    loadCreditChart();
+}
+
+function clearCreditFilters() {
+    document.getElementById('credit-filter-bank').value = '';
+    loadCreditChart();
+}
+
+window.loadCreditChart = loadCreditChart;
+window.applyCreditFilters = applyCreditFilters;
+window.clearCreditFilters = clearCreditFilters;

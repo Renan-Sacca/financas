@@ -92,3 +92,10 @@ class BankSummary(BaseModel):
 class Summary(BaseModel):
     banks: List[BankSummary]
     total_balance: float
+
+class CreditLimitSummary(BaseModel):
+    card_name: str
+    bank_name: str
+    total_limit: float
+    used_limit: float
+    available_limit: float

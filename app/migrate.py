@@ -118,11 +118,36 @@ def migrate_database():
             cursor.execute('ALTER TABLE bank ADD COLUMN current_balance REAL DEFAULT 0.0')
             # Copiar initial_balance para current_balance se existir
             if 'initial_balance' in bank_columns:
-                cursor.execute('UPDATE bank SET current_balance = initial_balance')
+                cursor.execute('UPDATE bank SET current_balance = initial_balance WHERE current_balance IS NULL')
             conn.commit()
             print("Migração concluída: coluna current_balance adicionada")
         except Exception as e:
             print(f"Erro na migração de current_balance: {e}")
+    
+    # Migração para remover initial_balance (recriar tabela)
+    if 'initial_balance' in bank_columns and 'current_balance' in bank_columns:
+        try:
+            # Criar nova tabela sem initial_balance
+            cursor.execute('''
+                CREATE TABLE bank_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name VARCHAR NOT NULL,
+                    current_balance REAL DEFAULT 0.0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Copiar dados
+            cursor.execute('INSERT INTO bank_new (id, name, current_balance, created_at) SELECT id, name, current_balance, created_at FROM bank')
+            
+            # Remover tabela antiga e renomear
+            cursor.execute('DROP TABLE bank')
+            cursor.execute('ALTER TABLE bank_new RENAME TO bank')
+            
+            conn.commit()
+            print("Migração concluída: initial_balance removido")
+        except Exception as e:
+            print(f"Erro na migração de remoção initial_balance: {e}")
     
     conn.close()
 
