@@ -4,9 +4,9 @@ from sqlmodel import Session, select
 from datetime import timedelta
 from app.database import get_session
 from app.models import User
-from app.schemas import UserCreate, UserLogin, Token, UserResponse
+from app.schemas import UserCreate, UserLogin, Token, UserResponse, PasswordResetRequest, PasswordReset
 from app.auth import get_password_hash, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
-from app.email_service import send_verification_email, generate_verification_token
+from app.email_service import send_verification_email, generate_verification_token, send_password_reset_email
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -102,3 +102,124 @@ def verify_email(token: str = Query(...), session: Session = Depends(get_session
 @router.get("/me", response_model=UserResponse)
 def get_current_user_info(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.post("/forgot-password")
+def forgot_password(request: PasswordResetRequest, session: Session = Depends(get_session)):
+    user = session.exec(select(User).where(User.email == request.email)).first()
+    
+    if not user:
+        # Por segurança, sempre retornamos sucesso mesmo se o email não existir
+        return {"message": "Se o email existir, um link de redefinição foi enviado."}
+    
+    # Gerar token de reset
+    reset_token = generate_verification_token()
+    user.reset_token = reset_token
+    session.add(user)
+    session.commit()
+    
+    # Enviar email
+    email_sent = send_password_reset_email(user.email, reset_token)
+    
+    return {
+        "message": "Se o email existir, um link de redefinição foi enviado.",
+        "email_sent": email_sent
+    }
+
+@router.post("/reset-password")
+def reset_password(request: PasswordReset, session: Session = Depends(get_session)):
+    user = session.exec(select(User).where(User.reset_token == request.token)).first()
+    
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Token inválido ou expirado"
+        )
+    
+    # Atualizar senha
+    user.hashed_password = get_password_hash(request.new_password)
+    user.reset_token = None  # Limpar token após uso
+    session.add(user)
+    session.commit()
+    
+    return {"message": "Senha redefinida com sucesso"}
+
+@router.get("/reset-password")
+def reset_password_page(token: str = Query(...)):
+    return HTMLResponse(f"""
+    <!DOCTYPE html>
+    <html lang="pt-BR">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Redefinir Senha - Sistema de Finanças</title>
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    </head>
+    <body class="bg-light">
+        <div class="container">
+            <div class="row justify-content-center">
+                <div class="col-md-6 col-lg-4">
+                    <div class="card mt-5">
+                        <div class="card-header text-center">
+                            <h3>Redefinir Senha</h3>
+                        </div>
+                        <div class="card-body">
+                            <form id="resetForm">
+                                <input type="hidden" id="token" value="{token}">
+                                <div class="mb-3">
+                                    <label for="newPassword" class="form-label">Nova Senha</label>
+                                    <input type="password" class="form-control" id="newPassword" required minlength="6">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="confirmPassword" class="form-label">Confirmar Nova Senha</label>
+                                    <input type="password" class="form-control" id="confirmPassword" required minlength="6">
+                                </div>
+                                <button type="submit" class="btn btn-primary w-100">Redefinir Senha</button>
+                            </form>
+                            <div id="message" class="mt-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+        <script>
+            document.getElementById('resetForm').addEventListener('submit', async (e) => {{
+                e.preventDefault();
+                
+                const token = document.getElementById('token').value;
+                const newPassword = document.getElementById('newPassword').value;
+                const confirmPassword = document.getElementById('confirmPassword').value;
+                const messageDiv = document.getElementById('message');
+                
+                if (newPassword !== confirmPassword) {{
+                    messageDiv.innerHTML = '<div class="alert alert-danger">As senhas não coincidem.</div>';
+                    return;
+                }}
+                
+                try {{
+                    const response = await fetch('/api/auth/reset-password', {{
+                        method: 'POST',
+                        headers: {{
+                            'Content-Type': 'application/json',
+                        }},
+                        body: JSON.stringify({{ token, new_password: newPassword }})
+                    }});
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {{
+                        messageDiv.innerHTML = '<div class="alert alert-success">Senha redefinida com sucesso! Redirecionando...</div>';
+                        setTimeout(() => {{
+                            window.location.href = '/login';
+                        }}, 2000);
+                    }} else {{
+                        messageDiv.innerHTML = `<div class="alert alert-danger">${{data.detail}}</div>`;
+                    }}
+                }} catch (error) {{
+                    messageDiv.innerHTML = '<div class="alert alert-danger">Erro ao redefinir senha. Tente novamente.</div>';
+                }}
+            }});
+        </script>
+    </body>
+    </html>
+    """)

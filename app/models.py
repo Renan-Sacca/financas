@@ -24,6 +24,7 @@ class User(SQLModel, table=True):
     is_active: bool = Field(default=False)
     is_verified: bool = Field(default=False)
     verification_token: Optional[str] = Field(default=None)
+    reset_token: Optional[str] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.now)
     
     banks: List["Bank"] = Relationship(back_populates="user")

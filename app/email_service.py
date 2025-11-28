@@ -43,3 +43,40 @@ def send_verification_email(email: str, token: str, base_url: str = BASE_URL) ->
     except Exception as e:
         print(f"Erro ao enviar email: {e}")
         return False
+
+def send_password_reset_email(email: str, token: str, base_url: str = BASE_URL) -> bool:
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = EMAIL_USER
+        msg['To'] = email
+        msg['Subject'] = "Redefinir senha - Sistema de Finanças"
+        
+        reset_link = f"{base_url}/reset-password?token={token}"
+        
+        body = f"""
+        <html>
+        <body>
+            <h2>Redefinir sua senha</h2>
+            <p>Você solicitou a redefinição de sua senha. Clique no link abaixo para criar uma nova senha:</p>
+            <p><a href="{reset_link}">Redefinir Senha</a></p>
+            <p>Ou copie e cole este link no seu navegador:</p>
+            <p>{reset_link}</p>
+            <p>Este link expira em 1 hora.</p>
+            <p>Se você não solicitou esta redefinição, ignore este email.</p>
+        </body>
+        </html>
+        """
+        
+        msg.attach(MIMEText(body, 'html'))
+        
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(EMAIL_USER, EMAIL_PASSWORD)
+        text = msg.as_string()
+        server.sendmail(EMAIL_USER, email, text)
+        server.quit()
+        
+        return True
+    except Exception as e:
+        print(f"Erro ao enviar email de reset: {e}")
+        return False

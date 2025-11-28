@@ -26,6 +26,13 @@ class Token(BaseModel):
 class EmailVerification(BaseModel):
     token: str
 
+class PasswordResetRequest(BaseModel):
+    email: EmailStr
+
+class PasswordReset(BaseModel):
+    token: str
+    new_password: str
+
 class BankCreate(BaseModel):
     name: str
     current_balance: Optional[float] = 0.0

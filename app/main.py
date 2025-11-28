@@ -39,6 +39,15 @@ async def read_login():
 async def read_register():
     return FileResponse("frontend/templates/register.html")
 
+@app.get("/forgot-password")
+async def read_forgot_password():
+    return FileResponse("frontend/templates/forgot-password.html")
+
+@app.get("/reset-password")
+async def read_reset_password(token: str = Query(...)):
+    from app.api.routes_auth import reset_password_page
+    return reset_password_page(token)
+
 # Rota de verificação de email (sem prefixo /api)
 @app.get("/verify-email")
 def verify_email(token: str = Query(...), session: Session = Depends(get_session)):
