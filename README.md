@@ -18,7 +18,7 @@ Sistema completo para controle de finanças pessoais com backend FastAPI, banco 
 
 ## Tecnologias
 
-- **Backend**: FastAPI + SQLModel + SQLite
+- **Backend**: FastAPI + SQLModel + MySQL
 - **Frontend**: HTML5 + Bootstrap 5 + JavaScript (Fetch API)
 - **Containerização**: Docker + Docker Compose
 
@@ -80,7 +80,7 @@ finance-app/
 ├── frontend/              # Frontend
 │   ├── static/           # CSS e JavaScript
 │   └── templates/        # HTML
-├── data/                 # Banco SQLite (criado automaticamente)
+├── data/                 # Dados locais (backup SQLite)
 ├── Dockerfile
 ├── docker-compose.yml
 └── requirements.txt
@@ -169,11 +169,44 @@ Para adicionar novas funcionalidades:
 2. **API**: Adicionar rotas em `app/api/`
 3. **Frontend**: Modificar `frontend/templates/index.html` e `frontend/static/js/app.js`
 
+## Migração para MySQL
+
+### Configuração do Banco
+
+1. **Configurar MySQL na VPS**:
+```bash
+# Configurar banco de dados
+python setup_mysql.py
+```
+
+2. **Migrar dados do SQLite (se existir)**:
+```bash
+# Migrar dados existentes
+python migrate_to_mysql.py
+```
+
+3. **Usar configuração de produção**:
+```bash
+# Copiar configurações para produção
+cp .env.production .env
+```
+
+### Variáveis de Ambiente MySQL
+
+```bash
+MYSQL_HOST=72.60.140.18
+MYSQL_PORT=3306
+MYSQL_USER=user_pessoal
+MYSQL_PASSWORD=Re+991352443
+MYSQL_DATABASE=financas_db
+```
+
 ## Melhorias Futuras
 
 - [x] Autenticação JWT
 - [x] Isolamento de dados por usuário
 - [x] Confirmação de email
+- [x] Migração para MySQL
 - [ ] Recuperação de senha
 - [ ] Filtros avançados por data
 - [ ] Exportação CSV

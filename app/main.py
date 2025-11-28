@@ -3,8 +3,6 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
 from sqlmodel import Session, select
 from app.database import create_db_and_tables, get_session
-from app.migrate import migrate_database
-from app.migrate_auth_simple import migrate_to_auth
 from app.models import User
 from app.api import routes_banks, routes_cards, routes_transactions, routes_summary, routes_transfers, routes_deposits, routes_categories, routes_auth
 
@@ -13,11 +11,7 @@ app = FastAPI(title="Finance Control API", version="1.0.0")
 # Criar tabelas no startup
 @app.on_event("startup")
 def on_startup():
-    import os
-    os.makedirs("data", exist_ok=True)
     create_db_and_tables()
-    migrate_database()
-    migrate_to_auth()
 
 # Incluir routers da API
 app.include_router(routes_auth.router)
