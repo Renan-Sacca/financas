@@ -6,12 +6,13 @@ from pydantic import BaseModel
 from app.database import get_session
 from app.schemas import TransactionCreate, TransactionResponse
 from app import crud
-from app.models import Card, Bank, Category
+from app.models import Card, Bank, Category, User
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 @router.post("/", response_model=TransactionResponse, status_code=201)
-def create_transaction(transaction: TransactionCreate, session: Session = Depends(get_session)):
+def create_transaction(transaction: TransactionCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     # Verificar se o cartão existe
     card = session.get(Card, transaction.card_id)
     if not card:
@@ -56,9 +57,10 @@ def list_transactions(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     status: Optional[str] = Query(None),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
-    transactions = crud.get_transactions(session, bank_id, card_id, date_from, date_to, status)
+    transactions = crud.get_transactions(session, bank_id, card_id, date_from, date_to, status, current_user.id)
     
     result = []
     for transaction in transactions:

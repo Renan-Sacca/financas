@@ -3,15 +3,16 @@ from sqlmodel import Session, select
 from app.database import get_session
 from app.schemas import Summary, BankSummary
 from app import crud
-from app.models import Transaction, Card, Bank
+from app.models import Transaction, Card, Bank, User
+from app.auth import get_current_user
 from typing import Optional, List
 from datetime import datetime
 
 router = APIRouter(prefix="/api/summary", tags=["summary"])
 
 @router.get("/", response_model=Summary)
-def get_summary(session: Session = Depends(get_session)):
-    banks = crud.get_banks(session)
+def get_summary(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    banks = crud.get_banks(session, current_user.id)
     bank_summaries = []
     total_balance = 0.0
     
@@ -35,10 +36,14 @@ def get_monthly_expenses(
     category_id: Optional[int] = Query(None),
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
-    # Query base para transações de despesa
-    query = select(Transaction).where(Transaction.type == "expense")
+    # Query base para transações de despesa do usuário
+    query = select(Transaction).join(Card).join(Bank).where(
+        Transaction.type == "expense",
+        Bank.user_id == current_user.id
+    )
     
     # Aplicar filtros
     if card_id:
@@ -101,10 +106,14 @@ def get_card_expenses(
     bank_id: Optional[int] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
-    # Query base para transações de despesa
-    query = select(Transaction, Card).join(Card).where(Transaction.type == "expense")
+    # Query base para transações de despesa do usuário
+    query = select(Transaction, Card).join(Card).join(Bank).where(
+        Transaction.type == "expense",
+        Bank.user_id == current_user.id
+    )
     
     # Aplicar filtros
     if bank_id:
@@ -141,12 +150,16 @@ def get_category_expenses(
     bank_id: Optional[int] = Query(None),
     date_from: Optional[str] = Query(None),
     date_to: Optional[str] = Query(None),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
     from app.models import Category
     
-    # Query base para transações de despesa com categoria
-    query = select(Transaction, Category).join(Category, Transaction.category_id == Category.id, isouter=True).where(Transaction.type == "expense")
+    # Query base para transações de despesa com categoria do usuário
+    query = select(Transaction, Category).join(Card).join(Bank).join(Category, Transaction.category_id == Category.id, isouter=True).where(
+        Transaction.type == "expense",
+        Bank.user_id == current_user.id
+    )
     
     # Aplicar filtros
     if bank_id:
@@ -181,13 +194,15 @@ def get_category_expenses(
 @router.get("/credit-limits")
 def get_credit_limits(
     bank_id: Optional[int] = Query(None),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
-    # Query para cartões de crédito com limite
+    # Query para cartões de crédito com limite do usuário
     query = select(Card, Bank).join(Bank).where(
         Card.type == "credit",
         Card.limit_amount.isnot(None),
-        Card.limit_amount > 0
+        Card.limit_amount > 0,
+        Bank.user_id == current_user.id
     )
     
     if bank_id:

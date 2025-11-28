@@ -1,8 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from app.database import get_session
-from app.models import Bank, Card, Transaction, TransactionType
+from app.models import Bank, Card, Transaction, TransactionType, User
 from app.crud import update_bank_balance
+from app.auth import get_current_user
 from pydantic import BaseModel
 from datetime import date
 from typing import List, Optional
@@ -23,9 +24,9 @@ class DepositResponse(BaseModel):
     date: date
 
 @router.post("/", response_model=DepositResponse)
-def create_deposit(deposit: DepositCreate, session: Session = Depends(get_session)):
-    # Verificar se o banco existe
-    bank = session.get(Bank, deposit.bank_id)
+def create_deposit(deposit: DepositCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    # Verificar se o banco existe e pertence ao usuário
+    bank = session.exec(select(Bank).where(Bank.id == deposit.bank_id, Bank.user_id == current_user.id)).first()
     if not bank:
         raise HTTPException(status_code=404, detail="Banco não encontrado")
     
@@ -72,9 +73,10 @@ def get_deposits(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     bank_id: Optional[int] = Query(None),
-    session: Session = Depends(get_session)
+    session: Session = Depends(get_session),
+    current_user: User = Depends(get_current_user)
 ):
-    query = select(Transaction, Card, Bank).select_from(Transaction).join(Card).join(Bank).where(Transaction.type == TransactionType.deposit)
+    query = select(Transaction, Card, Bank).select_from(Transaction).join(Card).join(Bank).where(Transaction.type == TransactionType.deposit, Bank.user_id == current_user.id)
     
     if date_from:
         query = query.where(Transaction.date >= date_from)
@@ -98,9 +100,13 @@ def get_deposits(
     return sorted(deposits, key=lambda x: x.date, reverse=True)
 
 @router.delete("/{deposit_id}")
-def delete_deposit(deposit_id: int, session: Session = Depends(get_session)):
-    transaction = session.get(Transaction, deposit_id)
-    if not transaction or transaction.type != TransactionType.deposit:
+def delete_deposit(deposit_id: int, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
+    # Verificar se o depósito existe e pertence ao usuário
+    transaction = session.exec(
+        select(Transaction).join(Card).join(Bank)
+        .where(Transaction.id == deposit_id, Transaction.type == TransactionType.deposit, Bank.user_id == current_user.id)
+    ).first()
+    if not transaction:
         raise HTTPException(status_code=404, detail="Depósito não encontrado")
     
     # Buscar banco para reverter saldo

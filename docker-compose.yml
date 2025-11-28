@@ -9,6 +9,9 @@ services:
       - ./data:/app/data
       - ./app:/app/app
       - ./frontend:/app/frontend
+      - ./.env:/app/.env
+    env_file:
+      - .env
     environment:
       - PYTHONPATH=/app
     restart: unless-stopped

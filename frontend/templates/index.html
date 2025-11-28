@@ -11,13 +11,17 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
         <div class="container">
             <a class="navbar-brand" href="#">Finanças Pessoais</a>
-            <div class="navbar-nav">
+            <div class="navbar-nav me-auto">
                 <a class="nav-link" href="#" onclick="showSection('dashboard')">Dashboard</a>
                 <a class="nav-link" href="#" onclick="showSection('banks')">Bancos</a>
                 <a class="nav-link" href="#" onclick="showSection('cards')">Cartões</a>
                 <a class="nav-link" href="#" onclick="showSection('categories')">Categorias</a>
                 <a class="nav-link" href="#" onclick="showSection('transactions')">Transações</a>
                 <a class="nav-link" href="#" onclick="showSection('transfers')">Depósitos</a>
+            </div>
+            <div class="navbar-nav">
+                <span class="navbar-text me-3" id="user-info">Carregando...</span>
+                <button class="btn btn-outline-light btn-sm" onclick="logout()">Sair</button>
             </div>
         </div>
     </nav>
@@ -687,37 +691,56 @@
         </div>
     </div>
 
+    <!-- Funções JavaScript movidas para app.js -->
     <script>
-        window.selectedTransactions = new Set();
-        // Função showSection removida - usando a do app.js
-        function showBankForm(){document.getElementById('bank-form-section').style.display='block';}
-        function hideBankForm(){document.getElementById('bank-form-section').style.display='none';}
-        function showCardForm(){document.getElementById('card-form-section').style.display='block';document.getElementById('card-form-title').textContent='Adicionar Cartão';document.getElementById('card-form').reset();}
-        function hideCardForm(){document.getElementById('card-form-section').style.display='none';}
-        function showTransactionForm(){document.getElementById('transaction-form-section').style.display='block';document.getElementById('transaction-form-title').textContent='Nova Compra';document.getElementById('transaction-form').reset();document.getElementById('transaction-date').value=new Date().toISOString().split('T')[0];}
-        function hideTransactionForm(){document.getElementById('transaction-form-section').style.display='none';}
-        function toggleInstallments(){const select=document.getElementById('card-select');const field=document.getElementById('installments-field');if(select.value){fetch('/api/cards/').then(r=>r.json()).then(cards=>{const card=cards.find(c=>c.id==select.value);field.style.display=card&&card.type==='credit'?'block':'none';});}else{field.style.display='none';}}
-        function showTransferForm(){document.getElementById('transfer-form-section').style.display='block';}
-        function hideTransferForm(){document.getElementById('transfer-form-section').style.display='none';}
-        function editBank(id){fetch('/api/banks/'+id).then(r=>r.json()).then(b=>{document.getElementById('bank-form-section').style.display='block';document.getElementById('bank-form-title').textContent='Editar Banco';document.getElementById('bank-id').value=b.id;document.getElementById('bank-name').value=b.name;document.getElementById('initial-balance').value=b.current_balance;});
-        function deleteBank(id){if(confirm('Excluir banco?'))fetch('/api/banks/'+id,{method:'DELETE'}).then(()=>location.reload());}
-        function editCard(id){fetch('/api/cards/').then(r=>r.json()).then(cards=>{const card=cards.find(c=>c.id==id);if(card){document.getElementById('card-form-section').style.display='block';document.getElementById('card-form-title').textContent='Editar Cartão';document.getElementById('card-id').value=card.id;document.getElementById('card-bank-select').value=card.bank_id;document.getElementById('card-name').value=card.name;document.getElementById('card-type').value=card.type;document.getElementById('card-limit').value=card.limit_amount||'';document.getElementById('card-due-day').value=card.due_day||'';}});}
-        function deleteCard(id){if(confirm('Excluir cartão?'))fetch('/api/cards/'+id,{method:'DELETE'}).then(()=>location.reload());}
-        function editTransaction(id){fetch('/api/transactions/').then(r=>r.json()).then(transactions=>{const t=transactions.find(tr=>tr.id==id);if(t){document.getElementById('transaction-form-section').style.display='block';document.getElementById('transaction-form-title').textContent='Editar Compra';document.getElementById('transaction-id').value=t.id;document.getElementById('card-select').value=t.card_id;document.getElementById('amount').value=t.amount;document.getElementById('description').value=t.description;document.getElementById('transaction-date').value=t.date;toggleInstallments();}});}
-        function deleteTransaction(id){if(confirm('Excluir compra?'))fetch('/api/transactions/'+id,{method:'DELETE'}).then(()=>loadData());}
-        function togglePayment(id){fetch('/api/transactions/'+id+'/toggle-payment',{method:'PATCH'}).then(()=>loadData());}
-        function loadTransactionsData(){console.log('loadTransactionsData INICIADA');const params=new URLSearchParams();const dateFrom=document.getElementById('filter-date-from')?.value;const dateTo=document.getElementById('filter-date-to')?.value;const bankId=document.getElementById('filter-bank')?.value;if(dateFrom)params.append('date_from',dateFrom);if(dateTo)params.append('date_to',dateTo);if(bankId)params.append('bank_id',bankId);const url='/api/transactions/'+(params.toString()?'?'+params.toString():'');console.log('Fazendo fetch para:',url);fetch(url).then(r=>r.json()).then(data=>{console.log('Dados recebidos:',data);const tbody=document.getElementById('transactions-list');console.log('tbody encontrado:',tbody);if(!tbody){console.error('tbody não encontrado!');return;}tbody.innerHTML='';if(data.length===0){tbody.innerHTML='<tr><td colspan="9">Nenhuma transação encontrada</td></tr>';return;}data.forEach(t=>{const row=document.createElement('tr');row.innerHTML='<td><input type="checkbox" class="transaction-checkbox" value="'+t.id+'" onchange="toggleTransactionSelection('+t.id+')"></td><td>'+new Date(t.date).toLocaleDateString('pt-BR')+'</td><td>'+t.bank_name+'</td><td>'+t.card_name+'</td><td>'+t.description+'</td><td>R$ '+t.amount.toFixed(2)+'</td><td>-</td><td>'+(t.is_paid?'Pago':'Pendente')+'</td><td><button class="btn btn-sm btn-outline-success" onclick="togglePayment('+t.id+')" title="Alterar Status">✓</button> <button class="btn btn-sm btn-outline-danger" onclick="deleteTransaction('+t.id+')" title="Excluir">🗑️</button></td>';tbody.appendChild(row);});console.log('Tabela atualizada!');}).catch(e=>console.error('Erro:',e));}
-        function applyFiltersInline(){console.log('Aplicando filtros');loadTransactionsData();}
-        function clearFiltersInline(){console.log('clearFiltersInline chamada');document.getElementById('filter-date-from').value='';document.getElementById('filter-date-to').value='';document.getElementById('filter-bank').value='';loadTransactionsData();loadTransactionFilters();}
-        function toggleSelectAllInline(){const selectAll=document.getElementById('select-all');const checkboxes=document.querySelectorAll('.transaction-checkbox');if(selectAll.checked){checkboxes.forEach(cb=>{cb.checked=true;const id=parseInt(cb.value);if(window.selectedTransactions)window.selectedTransactions.add(id);});}else{checkboxes.forEach(cb=>{cb.checked=false;});if(window.selectedTransactions)window.selectedTransactions.clear();}if(window.updateSelectionCounter)window.updateSelectionCounter();}
-        function toggleTransactionSelection(id){const checkbox=document.querySelector('input[value="'+id+'"]');if(window.selectedTransactions.has(id)){window.selectedTransactions.delete(id);}else{window.selectedTransactions.add(id);}updateSelectionCounter();}
-        function bulkUpdateStatus(isPaid){if(window.selectedTransactions.size===0){alert('Nenhuma transação selecionada');return;}const action=isPaid?'marcar como pagas':'marcar como pendentes';if(!confirm('Deseja '+action+' '+window.selectedTransactions.size+' transação'+(window.selectedTransactions.size!==1?'ões':'')+'?'))return;fetch('/api/transactions/bulk-update-status',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({transaction_ids:Array.from(window.selectedTransactions),is_paid:isPaid})}).then(r=>{if(r.ok){clearSelection();loadTransactionsData();alert('Status atualizado com sucesso!');}else{alert('Erro ao atualizar status');}}).catch(e=>{console.error('Erro:',e);alert('Erro ao atualizar status');});}
-        function clearSelection(){window.selectedTransactions.clear();document.querySelectorAll('.transaction-checkbox').forEach(cb=>cb.checked=false);const selectAll=document.getElementById('select-all');if(selectAll){selectAll.checked=false;selectAll.indeterminate=false;}updateSelectionCounter();}
-        function updateSelectionCounter(){const count=window.selectedTransactions?window.selectedTransactions.size:0;const counter=document.getElementById('selected-count');const bulkActions=document.getElementById('bulk-actions');if(counter)counter.textContent=count+' transação'+(count!==1?'ões':'')+' selecionada'+(count!==1?'s':'');if(bulkActions)bulkActions.style.display=count>0?'block':'none';}
-        window.updateSelectionCounter=updateSelectionCounter;
+        // Verificar autenticação ao carregar a página
+        document.addEventListener('DOMContentLoaded', function() {
+            const token = localStorage.getItem('token');
+            if (!token) {
+                window.location.href = '/login';
+                return;
+            }
+            
+            // Verificar se o token é válido
+            fetch('/api/auth/me', {
+                headers: {
+                    'Authorization': 'Bearer ' + token
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    localStorage.removeItem('token');
+                    window.location.href = '/login';
+                    return;
+                }
+                return response.json();
+            })
+            .then(user => {
+                if (user) {
+                    document.getElementById('user-info').textContent = `Olá, ${user.full_name}`;
+                    // Carregar dashboard após autenticação
+                    setTimeout(() => {
+                        if (typeof showSection === 'function') {
+                            showSection('dashboard');
+                        }
+                    }, 500);
+                }
+            })
+            .catch(() => {
+                localStorage.removeItem('token');
+                window.location.href = '/login';
+            });
+        });
+        
+        function logout() {
+            localStorage.removeItem('token');
+            window.location.href = '/login';
+        }
+        
+        // A autenticação agora é feita automaticamente pelo app_auth.js
     </script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="/static/js/app.js?v=2"></script>
+    <script src="/static/js/app_auth.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

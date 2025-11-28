@@ -4,6 +4,10 @@ Sistema completo para controle de finanças pessoais com backend FastAPI, banco 
 
 ## Funcionalidades
 
+- ✅ **Sistema de Autenticação Completo**
+  - Cadastro de usuários com confirmação por email
+  - Login seguro com JWT
+  - Isolamento de dados por usuário
 - ✅ Cadastro de bancos com saldo inicial
 - ✅ Criação de cartões (crédito/débito) vinculados aos bancos
 - ✅ Registro de transações (despesas, pagamentos, reembolsos)
@@ -19,6 +23,17 @@ Sistema completo para controle de finanças pessoais com backend FastAPI, banco 
 - **Containerização**: Docker + Docker Compose
 
 ## Como executar
+
+### Configuração Inicial
+
+1. **Configurar variáveis de ambiente**:
+```bash
+# Copiar arquivo de exemplo
+cp .env.example .env
+
+# Editar .env com suas configurações de email
+# Para Gmail, use uma senha de app: https://support.google.com/accounts/answer/185833
+```
 
 ### Com Docker (Recomendado)
 
@@ -43,6 +58,13 @@ pip install -r requirements.txt
 # Executar aplicação
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
+
+### Primeiro Acesso
+
+1. Acesse http://localhost:8000
+2. Clique em "Cadastre-se" para criar uma conta
+3. Verifique seu email e clique no link de confirmação
+4. Faça login com suas credenciais
 
 ## Estrutura do Projeto
 
@@ -130,12 +152,14 @@ Saldo Atual = Saldo Inicial + Pagamentos + Reembolsos - Despesas
 
 ## Dados de Teste
 
-Após executar a aplicação, você pode:
+Após fazer login, você pode:
 
 1. Criar um banco (ex: "Nubank") com saldo inicial R$ 500,00
 2. Adicionar cartões (ex: "Nubank Crédito" e "Nubank Débito")
 3. Registrar algumas transações de teste
 4. Verificar o resumo financeiro atualizado
+
+**Nota**: Cada usuário tem seus próprios dados isolados. Bancos, cartões e transações são privados para cada conta.
 
 ## Desenvolvimento
 
@@ -147,10 +171,14 @@ Para adicionar novas funcionalidades:
 
 ## Melhorias Futuras
 
-- [ ] Autenticação JWT
+- [x] Autenticação JWT
+- [x] Isolamento de dados por usuário
+- [x] Confirmação de email
+- [ ] Recuperação de senha
 - [ ] Filtros avançados por data
 - [ ] Exportação CSV
 - [ ] Gráficos interativos
 - [ ] Categorização de gastos
 - [ ] Metas de economia
 - [ ] Notificações de limite
+- [ ] Autenticação com Google/Facebook

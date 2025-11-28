@@ -4,21 +4,21 @@ from app.schemas import BankCreate, BankUpdate, CardCreate, CardUpdate, Transact
 from typing import List, Optional
 from datetime import date
 
-def create_bank(session: Session, bank: BankCreate) -> Bank:
-    db_bank = Bank(**bank.dict())
+def create_bank(session: Session, bank: BankCreate, user_id: int) -> Bank:
+    db_bank = Bank(**bank.dict(), user_id=user_id)
     session.add(db_bank)
     session.commit()
     session.refresh(db_bank)
     return db_bank
 
-def get_banks(session: Session) -> List[Bank]:
-    return session.exec(select(Bank)).all()
+def get_banks(session: Session, user_id: int) -> List[Bank]:
+    return session.exec(select(Bank).where(Bank.user_id == user_id)).all()
 
-def get_bank(session: Session, bank_id: int) -> Optional[Bank]:
-    return session.get(Bank, bank_id)
+def get_bank(session: Session, bank_id: int, user_id: int) -> Optional[Bank]:
+    return session.exec(select(Bank).where(Bank.id == bank_id, Bank.user_id == user_id)).first()
 
-def update_bank(session: Session, bank_id: int, bank_update: BankUpdate) -> Optional[Bank]:
-    bank = session.get(Bank, bank_id)
+def update_bank(session: Session, bank_id: int, bank_update: BankUpdate, user_id: int) -> Optional[Bank]:
+    bank = session.exec(select(Bank).where(Bank.id == bank_id, Bank.user_id == user_id)).first()
     if bank:
         update_data = bank_update.dict(exclude_unset=True)
         for field, value in update_data.items():
@@ -28,8 +28,8 @@ def update_bank(session: Session, bank_id: int, bank_update: BankUpdate) -> Opti
         return bank
     return None
 
-def delete_bank(session: Session, bank_id: int) -> bool:
-    bank = session.get(Bank, bank_id)
+def delete_bank(session: Session, bank_id: int, user_id: int) -> bool:
+    bank = session.exec(select(Bank).where(Bank.id == bank_id, Bank.user_id == user_id)).first()
     if bank:
         # Excluir todas as transações dos cartões deste banco
         cards = session.exec(select(Card).where(Card.bank_id == bank_id)).all()
@@ -54,14 +54,14 @@ def create_card(session: Session, bank_id: int, card: CardCreate) -> Card:
 def get_card(session: Session, card_id: int) -> Optional[Card]:
     return session.get(Card, card_id)
 
-def get_cards(session: Session, bank_id: Optional[int] = None) -> List[Card]:
-    query = select(Card)
+def get_cards(session: Session, user_id: int, bank_id: Optional[int] = None) -> List[Card]:
+    query = select(Card).join(Bank).where(Bank.user_id == user_id)
     if bank_id:
         query = query.where(Card.bank_id == bank_id)
     return session.exec(query).all()
 
-def update_card(session: Session, card_id: int, card_update: CardUpdate) -> Optional[Card]:
-    card = session.get(Card, card_id)
+def update_card(session: Session, card_id: int, card_update: CardUpdate, user_id: int) -> Optional[Card]:
+    card = session.exec(select(Card).join(Bank).where(Card.id == card_id, Bank.user_id == user_id)).first()
     if card:
         update_data = card_update.dict(exclude_unset=True)
         for field, value in update_data.items():
@@ -71,8 +71,8 @@ def update_card(session: Session, card_id: int, card_update: CardUpdate) -> Opti
         return card
     return None
 
-def delete_card(session: Session, card_id: int) -> bool:
-    card = session.get(Card, card_id)
+def delete_card(session: Session, card_id: int, user_id: int) -> bool:
+    card = session.exec(select(Card).join(Bank).where(Card.id == card_id, Bank.user_id == user_id)).first()
     if card:
         session.delete(card)
         session.commit()
@@ -86,8 +86,10 @@ def create_transaction(session: Session, transaction: TransactionCreate) -> Tran
     session.refresh(db_transaction)
     return db_transaction
 
-def get_transactions(session: Session, bank_id: Optional[int] = None, card_id: Optional[int] = None, date_from: Optional[date] = None, date_to: Optional[date] = None, status: Optional[str] = None) -> List[Transaction]:
+def get_transactions(session: Session, bank_id: Optional[int] = None, card_id: Optional[int] = None, date_from: Optional[date] = None, date_to: Optional[date] = None, status: Optional[str] = None, user_id: Optional[int] = None) -> List[Transaction]:
     query = select(Transaction).join(Card).join(Bank)
+    if user_id:
+        query = query.where(Bank.user_id == user_id)
     if bank_id:
         query = query.where(Bank.id == bank_id)
     if card_id:
@@ -306,18 +308,18 @@ def mark_previous_transactions_as_paid(session: Session, current_date) -> int:
     session.commit()
     return count
 
-def create_category(session: Session, category: CategoryCreate) -> Category:
-    db_category = Category(**category.dict())
+def create_category(session: Session, category: CategoryCreate, user_id: int) -> Category:
+    db_category = Category(**category.dict(), user_id=user_id)
     session.add(db_category)
     session.commit()
     session.refresh(db_category)
     return db_category
 
-def get_categories(session: Session) -> List[Category]:
-    return session.exec(select(Category)).all()
+def get_categories(session: Session, user_id: int) -> List[Category]:
+    return session.exec(select(Category).where(Category.user_id == user_id)).all()
 
-def update_category(session: Session, category_id: int, category_update: CategoryCreate) -> Optional[Category]:
-    category = session.get(Category, category_id)
+def update_category(session: Session, category_id: int, category_update: CategoryCreate, user_id: int) -> Optional[Category]:
+    category = session.exec(select(Category).where(Category.id == category_id, Category.user_id == user_id)).first()
     if category:
         category.name = category_update.name
         category.color = category_update.color
@@ -326,8 +328,8 @@ def update_category(session: Session, category_id: int, category_update: Categor
         return category
     return None
 
-def delete_category(session: Session, category_id: int) -> bool:
-    category = session.get(Category, category_id)
+def delete_category(session: Session, category_id: int, user_id: int) -> bool:
+    category = session.exec(select(Category).where(Category.id == category_id, Category.user_id == user_id)).first()
     if category:
         session.delete(category)
         session.commit()

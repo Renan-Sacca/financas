@@ -34,10 +34,19 @@ function showSection(sectionName) {
 }
 
 function showBankForm() {
+    console.log('showBankForm chamada');
     document.getElementById('bank-form-section').style.display = 'block';
     document.getElementById('bank-form-title').textContent = 'Adicionar Banco';
     document.getElementById('bank-form').reset();
     document.getElementById('bank-id').value = '';
+    
+    // Reconfigurar event listener se necessário
+    const bankForm = document.getElementById('bank-form');
+    if (bankForm) {
+        console.log('Reconfigurando event listener do bank-form');
+        bankForm.removeEventListener('submit', handleBankSubmit);
+        bankForm.addEventListener('submit', handleBankSubmit);
+    }
 }
 
 function hideBankForm() {
@@ -48,8 +57,17 @@ function hideBankForm() {
 }
 
 function showCardForm() {
+    console.log('showCardForm chamada');
     document.getElementById('card-form-section').style.display = 'block';
     document.getElementById('card-form').reset();
+    
+    // Reconfigurar event listener
+    const cardForm = document.getElementById('card-form');
+    if (cardForm) {
+        console.log('Reconfigurando event listener do card-form');
+        cardForm.removeEventListener('submit', handleCardSubmit);
+        cardForm.addEventListener('submit', handleCardSubmit);
+    }
 }
 
 function hideCardForm() {
@@ -57,11 +75,20 @@ function hideCardForm() {
 }
 
 function showTransactionForm() {
+    console.log('showTransactionForm chamada');
     const section = document.getElementById('transaction-form-section');
     if (section) {
         section.style.display = 'block';
         document.getElementById('transaction-form').reset();
         document.getElementById('transaction-date').value = new Date().toISOString().split('T')[0];
+        
+        // Reconfigurar event listener
+        const transactionForm = document.getElementById('transaction-form');
+        if (transactionForm) {
+            console.log('Reconfigurando event listener do transaction-form');
+            transactionForm.removeEventListener('submit', handleTransactionSubmit);
+            transactionForm.addEventListener('submit', handleTransactionSubmit);
+        }
     }
 }
 
@@ -71,12 +98,21 @@ function hideTransactionForm() {
 }
 
 function showTransferForm() {
+    console.log('showTransferForm chamada');
     const section = document.getElementById('transfer-form-section');
     if (section) {
         section.style.display = 'block';
         document.getElementById('transfer-form').reset();
         document.getElementById('deposit-date').value = new Date().toISOString().split('T')[0];
         loadBanksForDeposit();
+        
+        // Reconfigurar event listener
+        const transferForm = document.getElementById('transfer-form');
+        if (transferForm) {
+            console.log('Reconfigurando event listener do transfer-form');
+            transferForm.removeEventListener('submit', handleDepositSubmit);
+            transferForm.addEventListener('submit', handleDepositSubmit);
+        }
     }
 }
 
@@ -86,10 +122,19 @@ function hideTransferForm() {
 }
 
 function showCategoryForm() {
+    console.log('showCategoryForm chamada');
     document.getElementById('category-form-section').style.display = 'block';
     document.querySelector('#category-form-section h5').textContent = 'Adicionar Categoria';
     document.getElementById('category-form').removeAttribute('data-edit-id');
     document.getElementById('category-form').reset();
+    
+    // Reconfigurar event listener
+    const categoryForm = document.getElementById('category-form');
+    if (categoryForm) {
+        console.log('Reconfigurando event listener do category-form');
+        categoryForm.removeEventListener('submit', handleCategorySubmit);
+        categoryForm.addEventListener('submit', handleCategorySubmit);
+    }
 }
 
 function hideCategoryForm() {
@@ -136,43 +181,91 @@ let currentEditingBank = null;
 
 // Carregar dados quando DOM estiver pronto
 document.addEventListener('DOMContentLoaded', function() {
-    console.log('DOM carregado');
+    console.log('DOM carregado - app.js');
+    console.log('Procurando elementos do formulário...');
+    
+    // Aguardar um pouco para garantir que todos os elementos estejam carregados
+    setTimeout(() => {
+        console.log('Configurando event listeners após timeout...');
+        setupEventListeners();
+    }, 1000);
+    
     showSection('dashboard');
     loadData();
+});
+
+function setupEventListeners() {
+    console.log('setupEventListeners chamada');
     
     // Event listeners para formulários
     const bankForm = document.getElementById('bank-form');
     if (bankForm) {
+        console.log('Adicionando event listener ao bank-form');
         bankForm.addEventListener('submit', handleBankSubmit);
+    } else {
+        console.log('bank-form não encontrado');
     }
     
     const cardForm = document.getElementById('card-form');
     if (cardForm) {
+        console.log('Adicionando event listener ao card-form');
         cardForm.addEventListener('submit', handleCardSubmit);
+    } else {
+        console.log('card-form não encontrado');
     }
     
     const transactionForm = document.getElementById('transaction-form');
     if (transactionForm) {
+        console.log('Adicionando event listener ao transaction-form');
         transactionForm.addEventListener('submit', handleTransactionSubmit);
+    } else {
+        console.log('transaction-form não encontrado');
     }
     
     const transferForm = document.getElementById('transfer-form');
     if (transferForm) {
+        console.log('Adicionando event listener ao transfer-form');
         transferForm.addEventListener('submit', handleDepositSubmit);
+    } else {
+        console.log('transfer-form não encontrado');
     }
     
     const categoryForm = document.getElementById('category-form');
     if (categoryForm) {
+        console.log('Adicionando event listener ao category-form');
         categoryForm.addEventListener('submit', handleCategorySubmit);
+    } else {
+        console.log('category-form não encontrado');
     }
-});
+}
 
 
+
+// Função de teste
+function testBankSubmit() {
+    console.log('testBankSubmit chamada');
+    alert('Função de teste chamada! Verificando se handleBankSubmit funciona...');
+    
+    const name = document.getElementById('bank-name').value;
+    const initialBalance = parseFloat(document.getElementById('initial-balance').value) || 0;
+    
+    if (!name) {
+        alert('Por favor, preencha o nome do banco');
+        return;
+    }
+    
+    console.log('Dados:', { name, initialBalance });
+    
+    // Chamar diretamente a função
+    const fakeEvent = { preventDefault: () => {} };
+    handleBankSubmit(fakeEvent);
+}
 
 // Handlers dos formulários
 async function handleBankSubmit(e) {
-    console.log('handleBankSubmit chamada');
+    console.log('handleBankSubmit chamada - INICIO');
     e.preventDefault();
+    console.log('preventDefault executado');
     
     const name = document.getElementById('bank-name').value;
     const initialBalance = parseFloat(document.getElementById('initial-balance').value) || 0;
@@ -1360,6 +1453,7 @@ async function loadTransfers() {
 let expenseChart = null;
 
 async function loadDashboard() {
+    await loadSummary();
     await loadTransactionFilters();
     await loadYearFilter();
     await loadExpenseChart();
@@ -2028,3 +2122,4 @@ function clearCreditFilters() {
 window.loadCreditChart = loadCreditChart;
 window.applyCreditFilters = applyCreditFilters;
 window.clearCreditFilters = clearCreditFilters;
+window.testBankSubmit = testBankSubmit;
