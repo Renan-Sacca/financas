@@ -25,6 +25,9 @@ class User(SQLModel, table=True):
     is_verified: bool = Field(default=False)
     verification_token: Optional[str] = Field(default=None)
     reset_token: Optional[str] = Field(default=None)
+    id_telegram: Optional[int] = Field(default=None, unique=True, index=True)
+    username_telegram: Optional[str] = Field(default=None, index=True)
+    telefone: str = Field(max_length=15)
     created_at: datetime = Field(default_factory=datetime.now)
     
     banks: List["Bank"] = Relationship(back_populates="user")

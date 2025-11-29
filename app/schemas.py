@@ -7,6 +7,9 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: str
+    telefone: str
+    id_telegram: Optional[int] = None
+    username_telegram: Optional[str] = None
 
 class UserLogin(BaseModel):
     email: EmailStr
@@ -18,6 +21,15 @@ class UserResponse(BaseModel):
     full_name: str
     is_active: bool
     is_verified: bool
+    id_telegram: Optional[int] = None
+    username_telegram: Optional[str] = None
+    telefone: Optional[str] = None
+
+class UserUpdate(BaseModel):
+    full_name: Optional[str] = None
+    telefone: Optional[str] = None
+    id_telegram: Optional[int] = None
+    username_telegram: Optional[str] = None
 
 class Token(BaseModel):
     access_token: str

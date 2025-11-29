@@ -43,6 +43,10 @@ async def read_register():
 async def read_forgot_password():
     return FileResponse("frontend/templates/forgot-password.html")
 
+@app.get("/profile")
+async def read_profile():
+    return FileResponse("frontend/templates/profile.html")
+
 @app.get("/reset-password")
 async def read_reset_password(token: str = Query(...)):
     from app.api.routes_auth import reset_password_page

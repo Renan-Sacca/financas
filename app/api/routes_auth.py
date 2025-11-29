@@ -4,7 +4,7 @@ from sqlmodel import Session, select
 from datetime import timedelta
 from app.database import get_session
 from app.models import User
-from app.schemas import UserCreate, UserLogin, Token, UserResponse, PasswordResetRequest, PasswordReset
+from app.schemas import UserCreate, UserLogin, Token, UserResponse, PasswordResetRequest, PasswordReset, UserUpdate
 from app.auth import get_password_hash, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
 from app.email_service import send_verification_email, generate_verification_token, send_password_reset_email
 
@@ -28,6 +28,9 @@ def register_user(user: UserCreate, session: Session = Depends(get_session)):
         email=user.email,
         hashed_password=hashed_password,
         full_name=user.full_name,
+        telefone=user.telefone,
+        id_telegram=user.id_telegram,
+        username_telegram=user.username_telegram,
         verification_token=verification_token
     )
     
@@ -101,6 +104,22 @@ def verify_email(token: str = Query(...), session: Session = Depends(get_session
 
 @router.get("/me", response_model=UserResponse)
 def get_current_user_info(current_user: User = Depends(get_current_user)):
+    return current_user
+
+@router.put("/me", response_model=UserResponse)
+def update_current_user(user_update: UserUpdate, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
+    if user_update.full_name is not None:
+        current_user.full_name = user_update.full_name
+    if user_update.telefone is not None:
+        current_user.telefone = user_update.telefone
+    if user_update.id_telegram is not None:
+        current_user.id_telegram = user_update.id_telegram
+    if user_update.username_telegram is not None:
+        current_user.username_telegram = user_update.username_telegram
+    
+    session.add(current_user)
+    session.commit()
+    session.refresh(current_user)
     return current_user
 
 @router.post("/forgot-password")

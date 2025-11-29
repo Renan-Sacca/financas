@@ -27,6 +27,10 @@
                                 <input type="email" class="form-control" id="email" required>
                             </div>
                             <div class="mb-3">
+                                <label for="telefone" class="form-label">Telefone</label>
+                                <input type="tel" class="form-control" id="telefone" required placeholder="(11) 99999-9999">
+                            </div>
+                            <div class="mb-3">
                                 <label for="password" class="form-label">Senha</label>
                                 <input type="password" class="form-control" id="password" required minlength="6">
                             </div>
@@ -53,6 +57,7 @@
             
             const fullName = document.getElementById('fullName').value;
             const email = document.getElementById('email').value;
+            const telefone = document.getElementById('telefone').value;
             const password = document.getElementById('password').value;
             const confirmPassword = document.getElementById('confirmPassword').value;
             const messageDiv = document.getElementById('message');
@@ -70,7 +75,8 @@
                     },
                     body: JSON.stringify({ 
                         full_name: fullName,
-                        email, 
+                        email,
+                        telefone,
                         password 
                     })
                 });
