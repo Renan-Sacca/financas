@@ -402,7 +402,17 @@
                                 <option value="pending">Pendente</option>
                             </select>
                         </div>
-                        <div class="col-md-2 d-flex align-items-end gap-2">
+                        <div class="col-md-2">
+                            <label for="filter-created-via" class="form-label">Origem</label>
+                            <select class="form-select" id="filter-created-via">
+                                <option value="">Todas</option>
+                                <option value="web">Site</option>
+                                <option value="bot">Bot</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row mt-2">
+                        <div class="col-md-12 d-flex gap-2">
                             <button class="btn btn-primary" onclick="applyFilters()">Aplicar Filtros</button>
                             <button class="btn btn-outline-secondary" onclick="clearFilters()">Limpar</button>
                         </div>
@@ -513,6 +523,7 @@
                                     <th>Valor</th>
                                     <th>Parcela</th>
                                     <th>Status</th>
+                                    <th>Origem</th>
                                     <th>Ações</th>
                                 </tr>
                             </thead>

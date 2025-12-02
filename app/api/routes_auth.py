@@ -20,6 +20,23 @@ def register_user(user: UserCreate, session: Session = Depends(get_session)):
             detail="Email already registered"
         )
     
+    # Verificar se telefone já existe
+    existing_phone = session.exec(select(User).where(User.telefone == user.telefone)).first()
+    if existing_phone:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Phone number already registered"
+        )
+    
+    # Verificar se telegram_id já existe (se fornecido)
+    if user.id_telegram:
+        existing_telegram = session.exec(select(User).where(User.id_telegram == user.id_telegram)).first()
+        if existing_telegram:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Telegram ID already registered"
+            )
+    
     # Criar usuário
     verification_token = generate_verification_token()
     hashed_password = get_password_hash(user.password)
@@ -110,10 +127,27 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
 def update_current_user(user_update: UserUpdate, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
     if user_update.full_name is not None:
         current_user.full_name = user_update.full_name
+    
     if user_update.telefone is not None:
+        # Verificar se telefone já existe em outro usuário
+        existing_phone = session.exec(select(User).where(User.telefone == user_update.telefone, User.id != current_user.id)).first()
+        if existing_phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already registered"
+            )
         current_user.telefone = user_update.telefone
+    
     if user_update.id_telegram is not None:
+        # Verificar se telegram_id já existe em outro usuário
+        existing_telegram = session.exec(select(User).where(User.id_telegram == user_update.id_telegram, User.id != current_user.id)).first()
+        if existing_telegram:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Telegram ID already registered"
+            )
         current_user.id_telegram = user_update.id_telegram
+    
     if user_update.username_telegram is not None:
         current_user.username_telegram = user_update.username_telegram
     

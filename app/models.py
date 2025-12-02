@@ -16,6 +16,10 @@ class TransactionType(str, Enum):
     transfer_out = "transfer_out"
     transfer_in = "transfer_in"
 
+class CreatedVia(str, Enum):
+    web = "web"
+    bot = "bot"
+
 class User(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     email: str = Field(unique=True, index=True)
@@ -27,7 +31,7 @@ class User(SQLModel, table=True):
     reset_token: Optional[str] = Field(default=None)
     id_telegram: Optional[int] = Field(default=None, unique=True, index=True)
     username_telegram: Optional[str] = Field(default=None, index=True)
-    telefone: str = Field(max_length=15)
+    telefone: str = Field(max_length=15, unique=True, index=True)
     created_at: datetime = Field(default_factory=datetime.now)
     
     banks: List["Bank"] = Relationship(back_populates="user")
@@ -78,6 +82,7 @@ class Transaction(SQLModel, table=True):
     group_id: Optional[str] = Field(default=None)
     installment_number: Optional[int] = Field(default=None)
     total_installments: Optional[int] = Field(default=None)
+    created_via: CreatedVia = Field(default=CreatedVia.web)
     created_at: datetime = Field(default_factory=datetime.now)
     transfer_to_bank_id: Optional[int] = Field(default=None, foreign_key="bank.id")
     

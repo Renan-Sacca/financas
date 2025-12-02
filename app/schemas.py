@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from datetime import date
 from typing import List, Optional
-from app.models import CardType, TransactionType
+from app.models import CardType, TransactionType, CreatedVia
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -64,6 +64,13 @@ class CardCreate(BaseModel):
     limit_amount: Optional[float] = None
     due_day: Optional[int] = None
 
+class CardCreateBot(BaseModel):
+    bank_id: int
+    name: str
+    type: CardType
+    limit_amount: Optional[float] = None
+    due_day: Optional[int] = None
+
 class CardUpdate(BaseModel):
     name: Optional[str] = None
     type: Optional[CardType] = None
@@ -121,6 +128,7 @@ class TransactionResponse(BaseModel):
     group_id: Optional[str] = None
     installment_number: Optional[int] = None
     total_installments: Optional[int] = None
+    created_via: CreatedVia
     card_name: str
     card_type: CardType
     bank_name: str

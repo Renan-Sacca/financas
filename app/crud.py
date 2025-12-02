@@ -86,8 +86,8 @@ def create_transaction(session: Session, transaction: TransactionCreate) -> Tran
     session.refresh(db_transaction)
     return db_transaction
 
-def get_transactions(session: Session, bank_id: Optional[int] = None, card_id: Optional[int] = None, date_from: Optional[date] = None, date_to: Optional[date] = None, status: Optional[str] = None, user_id: Optional[int] = None) -> List[Transaction]:
-    query = select(Transaction).join(Card).join(Bank)
+def get_transactions(session: Session, bank_id: Optional[int] = None, card_id: Optional[int] = None, date_from: Optional[date] = None, date_to: Optional[date] = None, status: Optional[str] = None, user_id: Optional[int] = None, created_via: Optional[str] = None) -> List[Transaction]:
+    query = select(Transaction).join(Card).join(Bank).where(Transaction.type != 'deposit')
     if user_id:
         query = query.where(Bank.user_id == user_id)
     if bank_id:
@@ -102,6 +102,10 @@ def get_transactions(session: Session, bank_id: Optional[int] = None, card_id: O
         query = query.where(Transaction.is_paid == True)
     elif status == 'pending':
         query = query.where(Transaction.is_paid == False)
+    if created_via:
+        query = query.where(Transaction.created_via == created_via)
+    
+    transactions = session.exec(query).all()
     return session.exec(query).all()
 
 def create_transfer(session: Session, transfer: TransferCreate) -> bool:

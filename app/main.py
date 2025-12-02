@@ -4,7 +4,7 @@ from fastapi.responses import FileResponse, HTMLResponse
 from sqlmodel import Session, select
 from app.database import create_db_and_tables, get_session
 from app.models import User
-from app.api import routes_banks, routes_cards, routes_transactions, routes_summary, routes_transfers, routes_deposits, routes_categories, routes_auth
+from app.api import routes_banks, routes_cards, routes_transactions, routes_summary, routes_transfers, routes_deposits, routes_categories, routes_auth, routes_bot
 
 app = FastAPI(title="Finance Control API", version="1.0.0")
 
@@ -22,6 +22,7 @@ app.include_router(routes_summary.router)
 app.include_router(routes_transfers.router)
 app.include_router(routes_deposits.router)
 app.include_router(routes_categories.router)
+app.include_router(routes_bot.router)
 
 # Servir arquivos estáticos
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")

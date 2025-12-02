@@ -990,21 +990,24 @@ async function loadTransactionsData() {
         const dateTo = document.getElementById('filter-date-to')?.value;
         const bankId = document.getElementById('filter-bank')?.value;
         const status = document.getElementById('filter-status')?.value;
+        const createdVia = document.getElementById('filter-created-via')?.value;
         
         if (dateFrom) params.append('date_from', dateFrom);
         if (dateTo) params.append('date_to', dateTo);
         if (bankId) params.append('bank_id', bankId);
         if (status) params.append('status', status);
+        if (createdVia) params.append('created_via', createdVia);
         
         const url = '/api/transactions/' + (params.toString() ? '?' + params.toString() : '');
         const response = await fetch(url);
         const transactions = await response.json();
+
         
         const tbody = document.getElementById('transactions-list');
         tbody.innerHTML = '';
         
         if (transactions.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="11">Nenhuma transação encontrada</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="12">Nenhuma transação encontrada</td></tr>';
             return;
         }
         
@@ -1013,6 +1016,8 @@ async function loadTransactionsData() {
             const billDate = new Date(t.date + 'T12:00:00').toLocaleDateString('pt-BR');
             const categoryName = t.category_name || '-';
             const installmentInfo = (t.total_installments && t.total_installments > 1) ? `${t.installment_number}/${t.total_installments}` : '-';
+
+            const createdViaText = t.created_via === 'bot' ? '🤖 Bot' : '🌐 Site';
             
             const row = document.createElement('tr');
             row.innerHTML = `
@@ -1026,6 +1031,7 @@ async function loadTransactionsData() {
                 <td>R$ ${t.amount.toFixed(2)}</td>
                 <td>${installmentInfo}</td>
                 <td>${t.is_paid ? 'Pago' : 'Pendente'}</td>
+                <td><small>${createdViaText}</small></td>
                 <td>
                     ${t.group_id ? `<button class="btn btn-sm btn-outline-info" onclick="editGroup('${t.group_id}')" title="Editar Grupo">🔗</button> ` : ''}<button class="btn btn-sm btn-outline-primary" onclick="editTransaction(${t.id})" title="Editar">✏️</button>
                     <button class="btn btn-sm btn-outline-success" onclick="togglePayment(${t.id})" title="Alterar Status">✓</button>
@@ -1174,6 +1180,7 @@ function clearFiltersInline() {
     document.getElementById('filter-date-to').value = '';
     document.getElementById('filter-bank').value = '';
     document.getElementById('filter-status').value = '';
+    document.getElementById('filter-created-via').value = '';
     clearSelection();
     loadTransactionsData();
     loadTransactionFilters();

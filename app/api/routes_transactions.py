@@ -44,6 +44,7 @@ def create_transaction(transaction: TransactionCreate, session: Session = Depend
         group_id=db_transaction.group_id,
         installment_number=db_transaction.installment_number,
         total_installments=db_transaction.total_installments,
+        created_via=db_transaction.created_via,
         card_name=card.name,
         card_type=card.type,
         bank_name=card.bank.name,
@@ -57,10 +58,11 @@ def list_transactions(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),
     status: Optional[str] = Query(None),
+    created_via: Optional[str] = Query(None),
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    transactions = crud.get_transactions(session, bank_id, card_id, date_from, date_to, status, current_user.id)
+    transactions = crud.get_transactions(session, bank_id, card_id, date_from, date_to, status, current_user.id, created_via)
     
     result = []
     for transaction in transactions:
@@ -91,6 +93,7 @@ def list_transactions(
             group_id=transaction.group_id,
             installment_number=transaction.installment_number,
             total_installments=transaction.total_installments,
+            created_via=transaction.created_via or 'web',
             card_name=card.name,
             card_type=card.type,
             bank_name=bank.name,
@@ -130,6 +133,7 @@ def update_transaction(transaction_id: int, transaction_update: TransactionCreat
         group_id=updated_transaction.group_id,
         installment_number=updated_transaction.installment_number,
         total_installments=updated_transaction.total_installments,
+        created_via=updated_transaction.created_via,
         card_name=card.name,
         card_type=card.type,
         bank_name=card.bank.name,
@@ -167,6 +171,7 @@ def toggle_transaction_payment(transaction_id: int, session: Session = Depends(g
         group_id=updated_transaction.group_id,
         installment_number=updated_transaction.installment_number,
         total_installments=updated_transaction.total_installments,
+        created_via=updated_transaction.created_via,
         card_name=card.name,
         card_type=card.type,
         bank_name=card.bank.name,
@@ -201,7 +206,13 @@ def bulk_update_transaction_status(
             type=transaction.type,
             description=transaction.description,
             date=transaction.date,
+            purchase_date=transaction.purchase_date,
             is_paid=transaction.is_paid,
+            category_id=transaction.category_id,
+            group_id=transaction.group_id,
+            installment_number=transaction.installment_number,
+            total_installments=transaction.total_installments,
+            created_via=transaction.created_via or 'web',
             card_name=card.name,
             card_type=card.type,
             bank_name=card.bank.name,
