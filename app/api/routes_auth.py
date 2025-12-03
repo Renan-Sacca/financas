@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 from datetime import timedelta
-from app.database import get_session
+from app.db_utils import execute_with_retry
 from app.models import User
 from app.schemas import UserCreate, UserLogin, Token, UserResponse, PasswordResetRequest, PasswordReset, UserUpdate
 from app.auth import get_password_hash, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
@@ -11,51 +11,53 @@ from app.email_service import send_verification_email, generate_verification_tok
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 @router.post("/register", response_model=dict)
-def register_user(user: UserCreate, session: Session = Depends(get_session)):
-    # Verificar se email já existe
-    existing_user = session.exec(select(User).where(User.email == user.email)).first()
-    if existing_user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
-        )
-    
-    # Verificar se telefone já existe
-    existing_phone = session.exec(select(User).where(User.telefone == user.telefone)).first()
-    if existing_phone:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Phone number already registered"
-        )
-    
-    # Verificar se telegram_id já existe (se fornecido)
-    if user.id_telegram:
-        existing_telegram = session.exec(select(User).where(User.id_telegram == user.id_telegram)).first()
-        if existing_telegram:
+def register_user(user: UserCreate):
+    def register_query(session):
+        # Verificar se email já existe
+        existing_user = session.exec(select(User).where(User.email == user.email)).first()
+        if existing_user:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Telegram ID already registered"
+                detail="Email already registered"
             )
+        
+        # Verificar se telefone já existe
+        existing_phone = session.exec(select(User).where(User.telefone == user.telefone)).first()
+        if existing_phone:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Phone number already registered"
+            )
+        
+        # Verificar se telegram_id já existe (se fornecido)
+        if user.id_telegram:
+            existing_telegram = session.exec(select(User).where(User.id_telegram == user.id_telegram)).first()
+            if existing_telegram:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Telegram ID already registered"
+                )
+        
+        # Criar usuário
+        verification_token = generate_verification_token()
+        hashed_password = get_password_hash(user.password)
+        
+        db_user = User(
+            email=user.email,
+            hashed_password=hashed_password,
+            full_name=user.full_name,
+            telefone=user.telefone,
+            id_telegram=user.id_telegram,
+            username_telegram=user.username_telegram,
+            verification_token=verification_token
+        )
+        
+        session.add(db_user)
+        session.commit()
+        session.refresh(db_user)
+        return verification_token
     
-    # Criar usuário
-    verification_token = generate_verification_token()
-    hashed_password = get_password_hash(user.password)
-    
-    db_user = User(
-        email=user.email,
-        hashed_password=hashed_password,
-        full_name=user.full_name,
-        telefone=user.telefone,
-        id_telegram=user.id_telegram,
-        username_telegram=user.username_telegram,
-        verification_token=verification_token
-    )
-    
-    session.add(db_user)
-    session.commit()
-    session.refresh(db_user)
-    
-    # Enviar email de verificação
+    verification_token = execute_with_retry(register_query)
     email_sent = send_verification_email(user.email, verification_token)
     
     return {
@@ -64,39 +66,55 @@ def register_user(user: UserCreate, session: Session = Depends(get_session)):
     }
 
 @router.post("/login", response_model=Token)
-def login_user(user: UserLogin, session: Session = Depends(get_session)):
-    db_user = session.exec(select(User).where(User.email == user.email)).first()
+def login_user(user: UserLogin):
+    def login_query(session):
+        db_user = session.exec(select(User).where(User.email == user.email)).first()
+        
+        if not db_user or not verify_password(user.password, db_user.hashed_password):
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Incorrect email or password"
+            )
+        
+        if not db_user.is_verified:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Email not verified. Please check your email."
+            )
+        
+        if not db_user.is_active:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Account is inactive"
+            )
+        
+        return db_user.email
     
-    if not db_user or not verify_password(user.password, db_user.hashed_password):
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password"
-        )
-    
-    if not db_user.is_verified:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Email not verified. Please check your email."
-        )
-    
-    if not db_user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Account is inactive"
-        )
-    
+    email = execute_with_retry(login_query)
     access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     access_token = create_access_token(
-        data={"sub": db_user.email}, expires_delta=access_token_expires
+        data={"sub": email}, expires_delta=access_token_expires
     )
     
     return {"access_token": access_token, "token_type": "bearer"}
 
 @router.get("/verify-email")
-def verify_email(token: str = Query(...), session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.verification_token == token)).first()
+def verify_email(token: str = Query(...)):
+    def verify_query(session):
+        user = session.exec(select(User).where(User.verification_token == token)).first()
+        if not user:
+            return False
+        
+        user.is_verified = True
+        user.is_active = True
+        user.verification_token = None
+        session.add(user)
+        session.commit()
+        return True
     
-    if not user:
+    success = execute_with_retry(verify_query)
+    
+    if not success:
         return HTMLResponse("""
         <html><body>
         <h2>Token inválido ou expirado</h2>
@@ -104,12 +122,6 @@ def verify_email(token: str = Query(...), session: Session = Depends(get_session
         <a href="/">Voltar ao site</a>
         </body></html>
         """)
-    
-    user.is_verified = True
-    user.is_active = True
-    user.verification_token = None
-    session.add(user)
-    session.commit()
     
     return HTMLResponse("""
     <html><body>
@@ -124,54 +136,61 @@ def get_current_user_info(current_user: User = Depends(get_current_user)):
     return current_user
 
 @router.put("/me", response_model=UserResponse)
-def update_current_user(user_update: UserUpdate, current_user: User = Depends(get_current_user), session: Session = Depends(get_session)):
-    if user_update.full_name is not None:
-        current_user.full_name = user_update.full_name
+def update_current_user(user_update: UserUpdate, current_user: User = Depends(get_current_user)):
+    def update_query(session):
+        user = session.get(User, current_user.id)
+        
+        if user_update.full_name is not None:
+            user.full_name = user_update.full_name
+        
+        if user_update.telefone is not None:
+            existing_phone = session.exec(select(User).where(User.telefone == user_update.telefone, User.id != user.id)).first()
+            if existing_phone:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Phone number already registered"
+                )
+            user.telefone = user_update.telefone
+        
+        if user_update.id_telegram is not None:
+            existing_telegram = session.exec(select(User).where(User.id_telegram == user_update.id_telegram, User.id != user.id)).first()
+            if existing_telegram:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Telegram ID already registered"
+                )
+            user.id_telegram = user_update.id_telegram
+        
+        if user_update.username_telegram is not None:
+            user.username_telegram = user_update.username_telegram
+        
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return user
     
-    if user_update.telefone is not None:
-        # Verificar se telefone já existe em outro usuário
-        existing_phone = session.exec(select(User).where(User.telefone == user_update.telefone, User.id != current_user.id)).first()
-        if existing_phone:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Phone number already registered"
-            )
-        current_user.telefone = user_update.telefone
-    
-    if user_update.id_telegram is not None:
-        # Verificar se telegram_id já existe em outro usuário
-        existing_telegram = session.exec(select(User).where(User.id_telegram == user_update.id_telegram, User.id != current_user.id)).first()
-        if existing_telegram:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Telegram ID already registered"
-            )
-        current_user.id_telegram = user_update.id_telegram
-    
-    if user_update.username_telegram is not None:
-        current_user.username_telegram = user_update.username_telegram
-    
-    session.add(current_user)
-    session.commit()
-    session.refresh(current_user)
-    return current_user
+    return execute_with_retry(update_query)
 
 @router.post("/forgot-password")
-def forgot_password(request: PasswordResetRequest, session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.email == request.email)).first()
+def forgot_password(request: PasswordResetRequest):
+    def forgot_query(session):
+        user = session.exec(select(User).where(User.email == request.email)).first()
+        if not user:
+            return None
+        
+        reset_token = generate_verification_token()
+        user.reset_token = reset_token
+        session.add(user)
+        session.commit()
+        return (user.email, reset_token)
     
-    if not user:
-        # Por segurança, sempre retornamos sucesso mesmo se o email não existir
+    result = execute_with_retry(forgot_query)
+    
+    if not result:
         return {"message": "Se o email existir, um link de redefinição foi enviado."}
     
-    # Gerar token de reset
-    reset_token = generate_verification_token()
-    user.reset_token = reset_token
-    session.add(user)
-    session.commit()
-    
-    # Enviar email
-    email_sent = send_password_reset_email(user.email, reset_token)
+    email, reset_token = result
+    email_sent = send_password_reset_email(email, reset_token)
     
     return {
         "message": "Se o email existir, um link de redefinição foi enviado.",
@@ -179,21 +198,23 @@ def forgot_password(request: PasswordResetRequest, session: Session = Depends(ge
     }
 
 @router.post("/reset-password")
-def reset_password(request: PasswordReset, session: Session = Depends(get_session)):
-    user = session.exec(select(User).where(User.reset_token == request.token)).first()
+def reset_password(request: PasswordReset):
+    def reset_query(session):
+        user = session.exec(select(User).where(User.reset_token == request.token)).first()
+        
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Token inválido ou expirado"
+            )
+        
+        user.hashed_password = get_password_hash(request.new_password)
+        user.reset_token = None
+        session.add(user)
+        session.commit()
+        return True
     
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Token inválido ou expirado"
-        )
-    
-    # Atualizar senha
-    user.hashed_password = get_password_hash(request.new_password)
-    user.reset_token = None  # Limpar token após uso
-    session.add(user)
-    session.commit()
-    
+    execute_with_retry(reset_query)
     return {"message": "Senha redefinida com sucesso"}
 
 @router.get("/reset-password")
