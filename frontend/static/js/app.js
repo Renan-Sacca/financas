@@ -34,45 +34,36 @@ function showSection(sectionName) {
 }
 
 function showBankForm() {
-    console.log('showBankForm chamada');
-    document.getElementById('bank-form-section').style.display = 'block';
-    document.getElementById('bank-form-title').textContent = 'Adicionar Banco';
-    document.getElementById('bank-form').reset();
-    document.getElementById('bank-id').value = '';
+    document.getElementById('bankModalTitle').textContent = 'Adicionar Banco';
+    document.getElementById('modal-bank-form').reset();
+    document.getElementById('modal-bank-id').value = '';
+    new bootstrap.Modal(document.getElementById('bankModal')).show();
+}
+
+
+
+async function showCardForm() {
+    // Carregar bancos no select
+    const response = await fetch('/api/banks/');
+    const banks = await response.json();
     
-    // Reconfigurar event listener se necessário
-    const bankForm = document.getElementById('bank-form');
-    if (bankForm) {
-        console.log('Reconfigurando event listener do bank-form');
-        bankForm.removeEventListener('submit', handleBankSubmit);
-        bankForm.addEventListener('submit', handleBankSubmit);
-    }
-}
-
-function hideBankForm() {
-    document.getElementById('bank-form-section').style.display = 'none';
-    document.getElementById('bank-form').reset();
-    document.getElementById('bank-id').value = '';
-    document.getElementById('bank-form-title').textContent = 'Adicionar Banco';
-}
-
-function showCardForm() {
-    console.log('showCardForm chamada');
-    document.getElementById('card-form-section').style.display = 'block';
-    document.getElementById('card-form').reset();
+    const bankSelect = document.getElementById('modal-card-bank-select');
+    bankSelect.innerHTML = '<option value="">Selecione um banco</option>';
+    banks.forEach(bank => {
+        const option = document.createElement('option');
+        option.value = bank.id;
+        option.textContent = bank.name;
+        bankSelect.appendChild(option);
+    });
     
-    // Reconfigurar event listener
-    const cardForm = document.getElementById('card-form');
-    if (cardForm) {
-        console.log('Reconfigurando event listener do card-form');
-        cardForm.removeEventListener('submit', handleCardSubmit);
-        cardForm.addEventListener('submit', handleCardSubmit);
-    }
+    document.getElementById('cardModalTitle').textContent = 'Adicionar Cartão';
+    document.getElementById('modal-card-form').reset();
+    document.getElementById('modal-card-id').value = '';
+    toggleCardFields();
+    new bootstrap.Modal(document.getElementById('cardModal')).show();
 }
 
-function hideCardForm() {
-    document.getElementById('card-form-section').style.display = 'none';
-}
+
 
 function showTransactionForm() {
     console.log('showTransactionForm chamada');
@@ -122,38 +113,28 @@ function hideTransferForm() {
 }
 
 function showCategoryForm() {
-    console.log('showCategoryForm chamada');
-    document.getElementById('category-form-section').style.display = 'block';
-    document.querySelector('#category-form-section h5').textContent = 'Adicionar Categoria';
-    document.getElementById('category-form').removeAttribute('data-edit-id');
-    document.getElementById('category-form').reset();
-    
-    // Reconfigurar event listener
-    const categoryForm = document.getElementById('category-form');
-    if (categoryForm) {
-        console.log('Reconfigurando event listener do category-form');
-        categoryForm.removeEventListener('submit', handleCategorySubmit);
-        categoryForm.addEventListener('submit', handleCategorySubmit);
+    document.getElementById('categoryModalTitle').textContent = 'Adicionar Categoria';
+    document.getElementById('modal-category-form').reset();
+    document.getElementById('modal-category-id').value = '';
+    new bootstrap.Modal(document.getElementById('categoryModal')).show();
+}
+
+
+
+async function editBank(bankId) {
+    try {
+        const response = await fetch('/api/banks/' + bankId);
+        const bank = await response.json();
+        
+        document.getElementById('modal-bank-id').value = bank.id;
+        document.getElementById('modal-bank-name').value = bank.name;
+        document.getElementById('modal-initial-balance').value = bank.current_balance;
+        
+        new bootstrap.Modal(document.getElementById('bankModal')).show();
+    } catch (error) {
+        console.error('Erro ao carregar banco:', error);
+        alert('Erro ao carregar dados do banco');
     }
-}
-
-function hideCategoryForm() {
-    document.getElementById('category-form-section').style.display = 'none';
-    document.querySelector('#category-form-section h5').textContent = 'Adicionar Categoria';
-    document.getElementById('category-form').removeAttribute('data-edit-id');
-    document.getElementById('category-form').reset();
-}
-
-function editBank(bankId) {
-    fetch('/api/banks/' + bankId)
-        .then(response => response.json())
-        .then(bank => {
-            document.getElementById('bank-form-section').style.display = 'block';
-            document.getElementById('bank-form-title').textContent = 'Editar Banco';
-            document.getElementById('bank-id').value = bank.id;
-            document.getElementById('bank-name').value = bank.name;
-            document.getElementById('initial-balance').value = bank.current_balance;
-        });
 }
 
 function deleteBank(bankId) {
@@ -718,15 +699,7 @@ async function loadCards() {
         
         document.getElementById('cards-list').innerHTML = html || '<p class="text-muted">Nenhum cartão cadastrado.</p>';
         
-        // Atualizar select de bancos no formulário de cartão
-        const bankSelect = document.getElementById('card-bank-select');
-        bankSelect.innerHTML = '<option value="">Selecione um banco</option>';
-        banks.forEach(bank => {
-            const option = document.createElement('option');
-            option.value = bank.id;
-            option.textContent = bank.name;
-            bankSelect.appendChild(option);
-        });
+        // Select removido - agora é carregado apenas nos modais
         
     } catch (error) {
         console.error('Erro ao carregar cartões:', error);
@@ -776,11 +749,11 @@ async function editCategory(categoryId) {
         const category = categories.find(c => c.id === categoryId);
         
         if (category) {
-            document.getElementById('category-form-section').style.display = 'block';
-            document.querySelector('#category-form-section h5').textContent = 'Editar Categoria';
-            document.getElementById('category-name').value = category.name;
-            document.getElementById('category-color').value = category.color;
-            document.getElementById('category-form').dataset.editId = categoryId;
+            document.getElementById('modal-category-id').value = category.id;
+            document.getElementById('modal-category-name').value = category.name;
+            document.getElementById('modal-category-color').value = category.color;
+            
+            new bootstrap.Modal(document.getElementById('categoryModal')).show();
         }
     } catch (error) {
         console.error('Erro ao carregar categoria:', error);
@@ -1432,6 +1405,7 @@ async function loadTransfers() {
                 <td>${deposit.description}</td>
                 <td class="text-success">R$ ${deposit.amount.toFixed(2)}</td>
                 <td>
+                    <button class="btn btn-sm btn-outline-primary" onclick="editDeposit(${deposit.id})" title="Editar">✏️</button>
                     <button class="btn btn-sm btn-outline-danger" onclick="deleteDeposit(${deposit.id})" title="Excluir">🗑️</button>
                 </td>
             `;
@@ -1889,7 +1863,6 @@ window.clearPieFilters = clearPieFilters;
 window.applyCategoryPieFilters = applyCategoryPieFilters;
 window.clearCategoryPieFilters = clearCategoryPieFilters;
 window.showCategoryForm = showCategoryForm;
-window.hideCategoryForm = hideCategoryForm;
 window.deleteCategory = deleteCategory;
 window.editCategory = editCategory;
 window.editTransaction = editTransaction;
@@ -1937,19 +1910,36 @@ window.clearDepositFilters = clearDepositFilters;
 
 async function editCard(cardId) {
     try {
-        const response = await fetch('/api/cards/');
-        const cards = await response.json();
+        const [cardsResponse, banksResponse] = await Promise.all([
+            fetch('/api/cards/'),
+            fetch('/api/banks/')
+        ]);
+        
+        const cards = await cardsResponse.json();
+        const banks = await banksResponse.json();
         const card = cards.find(c => c.id === cardId);
         
         if (card) {
-            document.getElementById('card-form-section').style.display = 'block';
-            document.getElementById('card-form-title').textContent = 'Editar Cartão';
-            document.getElementById('card-id').value = card.id;
-            document.getElementById('card-bank-select').value = card.bank_id;
-            document.getElementById('card-name').value = card.name;
-            document.getElementById('card-type').value = card.type;
-            document.getElementById('card-limit').value = card.limit_amount || '';
-            document.getElementById('card-due-day').value = card.due_day || '';
+            // Carregar bancos no select
+            const bankSelect = document.getElementById('modal-card-bank-select');
+            bankSelect.innerHTML = '<option value="">Selecione um banco</option>';
+            banks.forEach(bank => {
+                const option = document.createElement('option');
+                option.value = bank.id;
+                option.textContent = bank.name;
+                bankSelect.appendChild(option);
+            });
+            
+            // Preencher dados do cartão
+            document.getElementById('modal-card-id').value = card.id;
+            document.getElementById('modal-card-bank-select').value = card.bank_id;
+            document.getElementById('modal-card-name').value = card.name;
+            document.getElementById('modal-card-type').value = card.type;
+            document.getElementById('modal-card-limit').value = card.limit_amount || '';
+            document.getElementById('modal-card-due-day').value = card.due_day || '';
+            
+            toggleCardFields();
+            new bootstrap.Modal(document.getElementById('cardModal')).show();
         }
     } catch (error) {
         console.error('Erro ao carregar cartão:', error);
@@ -2002,9 +1992,8 @@ function toggleInstallments() {
 
 window.toggleInstallments = toggleInstallments;
 
-let creditChart = null;
-
 async function loadCreditChart() {
+    let creditChart = null;
     try {
         const params = new URLSearchParams();
         const bankId = document.getElementById('credit-filter-bank')?.value;
@@ -2021,8 +2010,9 @@ async function loadCreditChart() {
         
         const ctx = document.getElementById('creditChart').getContext('2d');
         
-        if (creditChart) {
-            creditChart.destroy();
+        const existingChart = Chart.getChart('creditChart');
+        if (existingChart) {
+            existingChart.destroy();
         }
         
         if (data.length === 0) {
@@ -2126,7 +2116,208 @@ function clearCreditFilters() {
     loadCreditChart();
 }
 
+// Funções para salvar edições dos modais
+async function saveBankEdit() {
+    const bankId = document.getElementById('modal-bank-id').value;
+    const name = document.getElementById('modal-bank-name').value;
+    const currentBalance = parseFloat(document.getElementById('modal-initial-balance').value) || 0;
+    
+    try {
+        let response;
+        if (bankId) {
+            // Editar banco existente
+            response = await fetch(`${API_BASE}/banks/${bankId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, current_balance: currentBalance })
+            });
+        } else {
+            // Criar novo banco
+            response = await fetch(`${API_BASE}/banks/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, current_balance: currentBalance })
+            });
+        }
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('bankModal')).hide();
+            loadData();
+            alert(bankId ? 'Banco atualizado com sucesso!' : 'Banco criado com sucesso!');
+        } else {
+            alert('Erro ao salvar banco');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao salvar banco');
+    }
+}
+
+async function saveCardEdit() {
+    const cardId = document.getElementById('modal-card-id').value;
+    const bankId = parseInt(document.getElementById('modal-card-bank-select').value);
+    const name = document.getElementById('modal-card-name').value;
+    const type = document.getElementById('modal-card-type').value;
+    const limitAmount = parseFloat(document.getElementById('modal-card-limit').value) || null;
+    const dueDay = parseInt(document.getElementById('modal-card-due-day').value) || null;
+    
+    try {
+        let response;
+        if (cardId) {
+            // Editar cartão existente
+            response = await fetch(`${API_BASE}/cards/${cardId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, type, limit_amount: limitAmount, due_day: dueDay })
+            });
+        } else {
+            // Criar novo cartão
+            response = await fetch(`${API_BASE}/banks/${bankId}/cards`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, type, limit_amount: limitAmount, due_day: dueDay })
+            });
+        }
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('cardModal')).hide();
+            loadData();
+            alert(cardId ? 'Cartão atualizado com sucesso!' : 'Cartão criado com sucesso!');
+        } else {
+            alert('Erro ao salvar cartão');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao salvar cartão');
+    }
+}
+
+async function saveCategoryEdit() {
+    const categoryId = document.getElementById('modal-category-id').value;
+    const name = document.getElementById('modal-category-name').value;
+    const color = document.getElementById('modal-category-color').value;
+    
+    try {
+        let response;
+        if (categoryId) {
+            // Editar categoria existente
+            response = await fetch(`${API_BASE}/categories/${categoryId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color })
+            });
+        } else {
+            // Criar nova categoria
+            response = await fetch(`${API_BASE}/categories/`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, color })
+            });
+        }
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('categoryModal')).hide();
+            loadData();
+            alert(categoryId ? 'Categoria atualizada com sucesso!' : 'Categoria criada com sucesso!');
+        } else {
+            alert('Erro ao salvar categoria');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao salvar categoria');
+    }
+}
+
+async function editDeposit(depositId) {
+    try {
+        const [depositsResponse, banksResponse] = await Promise.all([
+            fetch('/api/deposits/'),
+            fetch('/api/banks/')
+        ]);
+        
+        const deposits = await depositsResponse.json();
+        const banks = await banksResponse.json();
+        const deposit = deposits.find(d => d.id === depositId);
+        
+        if (deposit) {
+            // Carregar bancos no select
+            const bankSelect = document.getElementById('modal-deposit-bank');
+            bankSelect.innerHTML = '<option value="">Selecione o banco</option>';
+            banks.forEach(bank => {
+                const option = document.createElement('option');
+                option.value = bank.id;
+                option.textContent = bank.name;
+                if (bank.name === deposit.bank_name) {
+                    option.selected = true;
+                }
+                bankSelect.appendChild(option);
+            });
+            
+            // Preencher dados do depósito
+            document.getElementById('modal-deposit-id').value = deposit.id;
+            document.getElementById('modal-deposit-amount').value = deposit.amount;
+            document.getElementById('modal-deposit-date').value = deposit.date;
+            document.getElementById('modal-deposit-description').value = deposit.description;
+            
+            new bootstrap.Modal(document.getElementById('depositModal')).show();
+        }
+    } catch (error) {
+        console.error('Erro ao carregar depósito:', error);
+        alert('Erro ao carregar dados do depósito');
+    }
+}
+
+async function saveDepositEdit() {
+    const depositId = document.getElementById('modal-deposit-id').value;
+    const bankId = parseInt(document.getElementById('modal-deposit-bank').value);
+    const amount = parseFloat(document.getElementById('modal-deposit-amount').value);
+    const date = document.getElementById('modal-deposit-date').value;
+    const description = document.getElementById('modal-deposit-description').value;
+    
+    try {
+        const response = await fetch(`${API_BASE}/deposits/${depositId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ bank_id: bankId, amount, date, description })
+        });
+        
+        if (response.ok) {
+            bootstrap.Modal.getInstance(document.getElementById('depositModal')).hide();
+            loadData();
+            alert('Depósito atualizado com sucesso!');
+        } else {
+            alert('Erro ao atualizar depósito');
+        }
+    } catch (error) {
+        console.error('Erro:', error);
+        alert('Erro ao atualizar depósito');
+    }
+}
+
 window.loadCreditChart = loadCreditChart;
 window.applyCreditFilters = applyCreditFilters;
 window.clearCreditFilters = clearCreditFilters;
+window.saveBankEdit = saveBankEdit;
+window.saveCardEdit = saveCardEdit;
+window.saveCategoryEdit = saveCategoryEdit;
+window.editDeposit = editDeposit;
+window.saveDepositEdit = saveDepositEdit;
+
+function toggleCardFields() {
+    const cardType = document.getElementById('modal-card-type').value;
+    const limitField = document.getElementById('modal-card-limit-field');
+    const dueField = document.getElementById('modal-card-due-field');
+    
+    if (cardType === 'debit') {
+        limitField.style.display = 'none';
+        dueField.style.display = 'none';
+        document.getElementById('modal-card-limit').value = '';
+        document.getElementById('modal-card-due-day').value = '';
+    } else {
+        limitField.style.display = 'block';
+        dueField.style.display = 'block';
+    }
+}
+
+window.toggleCardFields = toggleCardFields;
 window.testBankSubmit = testBankSubmit;

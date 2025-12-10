@@ -8,6 +8,8 @@ Sistema completo para controle de finanças pessoais com backend FastAPI, banco 
   - Cadastro de usuários com confirmação por email
   - Login seguro com JWT
   - Isolamento de dados por usuário
+  - Campos opcionais para integração Telegram (ID e username)
+  - Campo opcional para telefone
 - ✅ Cadastro de bancos com saldo inicial
 - ✅ Criação de cartões (crédito/débito) vinculados aos bancos
 - ✅ Registro de transações (despesas, pagamentos, reembolsos)
@@ -207,7 +209,9 @@ MYSQL_DATABASE=financas_db
 - [x] Isolamento de dados por usuário
 - [x] Confirmação de email
 - [x] Migração para MySQL
-- [ ] Recuperação de senha
+- [x] Recuperação de senha
+- [x] Campos para integração Telegram
+- [ ] Bot Telegram para notificações
 - [ ] Filtros avançados por data
 - [ ] Exportação CSV
 - [ ] Gráficos interativos

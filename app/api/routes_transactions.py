@@ -189,6 +189,86 @@ def bulk_update_transaction_status(request: BulkUpdateRequest):
     
     return execute_with_retry(bulk_update_query)
 
+class GroupUpdateRequest(BaseModel):
+    group_id: str
+    card_id: int
+    total_amount: float
+    description: str
+    date: date
+    category_id: Optional[int] = None
+    installments: int
+
+@router.patch("/update-group", response_model=dict)
+def update_transaction_group(request: GroupUpdateRequest):
+    def update_group_query(session):
+        updated_count = crud.update_transaction_group(session, request)
+        if updated_count == 0:
+            raise HTTPException(status_code=404, detail="Group not found")
+        return {"message": f"Updated {updated_count} transactions", "count": updated_count}
+    
+    return execute_with_retry(update_group_query)
+
+@router.delete("/delete-group/{group_id}", status_code=200)
+def delete_transaction_group(group_id: str):
+    def delete_group_query(session):
+        deleted_count = crud.delete_transaction_group(session, group_id)
+        if deleted_count == 0:
+            raise HTTPException(status_code=404, detail="Group not found")
+        return {"message": f"Deleted {deleted_count} transactions", "count": deleted_count}
+    
+    return execute_with_retry(delete_group_query)
+
+@router.patch("/mark-previous-as-paid", response_model=dict)
+def mark_previous_as_paid():
+    def mark_previous_query(session):
+        from datetime import date
+        current_date = date.today()
+        updated_count = crud.mark_previous_transactions_as_paid(session, current_date)
+        return {"message": f"Marked {updated_count} transactions as paid", "count": updated_count}
+    
+    return execute_with_retry(mark_previous_query)
+
+@router.put("/{transaction_id}", response_model=TransactionResponse)
+def update_transaction(transaction_id: int, transaction: TransactionCreate):
+    def update_transaction_query(session):
+        updated_transaction = crud.update_transaction(session, transaction_id, transaction)
+        if not updated_transaction:
+            raise HTTPException(status_code=404, detail="Transaction not found")
+        
+        card = session.get(Card, updated_transaction.card_id)
+        transfer_to_bank_name = None
+        if updated_transaction.transfer_to_bank_id:
+            transfer_bank = session.get(Bank, updated_transaction.transfer_to_bank_id)
+            transfer_to_bank_name = transfer_bank.name if transfer_bank else None
+        
+        category_name = None
+        if updated_transaction.category_id:
+            category = session.get(Category, updated_transaction.category_id)
+            category_name = category.name if category else None
+        
+        return TransactionResponse(
+            id=updated_transaction.id,
+            card_id=updated_transaction.card_id,
+            amount=updated_transaction.amount,
+            type=updated_transaction.type,
+            description=updated_transaction.description,
+            date=updated_transaction.date,
+            purchase_date=updated_transaction.purchase_date,
+            is_paid=updated_transaction.is_paid,
+            category_id=updated_transaction.category_id,
+            category_name=category_name,
+            group_id=updated_transaction.group_id,
+            installment_number=updated_transaction.installment_number,
+            total_installments=updated_transaction.total_installments,
+            created_via=updated_transaction.created_via,
+            card_name=card.name,
+            card_type=card.type,
+            bank_name=card.bank.name,
+            transfer_to_bank_name=transfer_to_bank_name
+        )
+    
+    return execute_with_retry(update_transaction_query)
+
 @router.delete("/{transaction_id}", status_code=204)
 def delete_transaction(transaction_id: int):
     def delete_transaction_query(session):

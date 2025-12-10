@@ -1,0 +1,225 @@
+ssh root@72.60.140.18
+(ou com o usuário que você usa)
+
+2. Instalar o nginx
+bash
+Copiar código
+sudo apt update
+sudo apt install nginx -y
+Quando terminar, teste:
+
+bash
+Copiar código
+systemctl status nginx
+Se aparecer active (running), está perfeito ✅
+
+3. Liberar a porta 80
+bash
+Copiar código
+sudo ufw allow 80
+sudo ufw reload
+4. Criar sua configuração
+bash
+Copiar código
+sudo nano /etc/nginx/sites-available/financepowder.cloud
+Cole isso exatamente (ajuste apenas o domínio se quiser):
+
+nginx
+Copiar código
+# Flask
+server {
+    listen 80;
+    server_name financepowder.cloud www.financepowder.cloud;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+# n8n
+server {
+    listen 80;
+    server_name n8n.financepowder.cloud;
+
+    location / {
+        proxy_pass http://127.0.0.1:5678;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+Salvar:
+
+objectivec
+Copiar código
+CTRL + O
+ENTER
+CTRL + X
+5. Ativar o site
+bash
+Copiar código
+sudo ln -s /etc/nginx/sites-available/financepowder.cloud /etc/nginx/sites-enabled/
+6. Testar se não tem erro
+bash
+Copiar código
+sudo nginx -t
+Tem que aparecer:
+
+csharp
+Copiar código
+syntax is ok
+test is successful
+7. Reiniciar nginx
+bash
+Copiar código
+sudo systemctl reload nginx
+
+
+
+
+
+
+sudo apt install certbot python3-certbot-nginx -y
+sudo certbot --nginx
+
+sudo certbot --nginx -d financepowder.cloud -d www.financepowder.cloud
+sudo certbot --nginx -d n8n.financepowder.cloud
+
+
+sudo nano /etc/nginx/sites-available/financepowder.cloud
+
+
+############################################
+# REDIRECT HTTP -> HTTPS
+############################################
+
+server {
+    listen 80;
+    server_name financepowder.cloud www.financepowder.cloud n8n.financepowder.cloud;
+
+    return 301 https://$host$request_uri;
+}
+
+
+
+#############################################
+# FLASK - HTTPS
+#############################################
+
+server {
+    listen 443 ssl;
+    server_name financepowder.cloud www.financepowder.cloud;
+
+    ssl_certificate /etc/letsencrypt/live/financepowder.cloud/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/financepowder.cloud/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+
+
+#############################################
+# N8N - HTTPS (COM WEBSOCKET)
+#############################################
+
+server {
+    listen 443 ssl;
+    server_name n8n.financepowder.cloud;
+
+    ssl_certificate /etc/letsencrypt/live/n8n.financepowder.cloud/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/n8n.financepowder.cloud/privkey.pem;
+
+    location / {
+        proxy_pass http://127.0.0.1:5678;
+
+        # ESSENCIAL PARA O N8N
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_read_timeout 3600s;
+        proxy_send_timeout 3600s;
+    }
+}
+
+
+criar banco supabase
+create extension if not exists vector;
+create extension if not exists vector with schema public;
+docker exec -it supabase-db psql -U postgres -d postgres -c "create extension if not exists vector;"
+create table if not exists documents (
+  id uuid primary key default gen_random_uuid(),
+  content text not null,
+  metadata jsonb,
+  embedding vector(1536)
+);
+
+
+
+create or replace function match_documents(
+  query_embedding vector(1536),
+  match_count int default 5
+)
+returns table (
+  id uuid,
+  content text,
+  metadata jsonb,
+  similarity float
+)
+language sql stable
+as $$
+  select
+    d.id,
+    d.content,
+    d.metadata,
+    1 - (d.embedding <=> query_embedding) as similarity
+  from documents d
+  order by d.embedding <=> query_embedding
+  limit match_count;
+$$;
+
+
+ALTER TABLE documents
+  ALTER COLUMN embedding TYPE vector(768);
+
+
+
+testar supabase
+docker exec -it n8n sh
+node -e "
+fetch('http://72.60.140.18:8800/rest/v1/', {
+  headers: { apikey: 'SEU_NOVO_SERVICE_ROLE_KEY' }
+})
+.then(r => { console.log(r.status, r.statusText); return r.text(); })
+.then(console.log)
+.catch(console.error);
+"
+
+
+
+
+
+docker exec -it ollama ollama pull nomic-embed-text
+docker exec -it ollama ollama list
+docker exec -it n8n curl http://ollama:11434/api/tags
+http://ollama:11434
+
+
+
+
+
+ALTER TABLE documents
+  ALTER COLUMN embedding TYPE vector(768);
