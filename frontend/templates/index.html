@@ -765,8 +765,9 @@
                 return;
             }
             
-            // Verificar se o token é válido
-            fetch('/api/auth/me', {
+            // Verificar e renovar token se necessário
+            fetch('/api/auth/refresh-token', {
+                method: 'POST',
                 headers: {
                     'Authorization': 'Bearer ' + token
                 }
@@ -779,10 +780,25 @@
                 }
                 return response.json();
             })
+            .then(tokenData => {
+                if (tokenData && tokenData.access_token) {
+                    localStorage.setItem('token', tokenData.access_token);
+                    
+                    return fetch('/api/auth/me', {
+                        headers: {
+                            'Authorization': 'Bearer ' + tokenData.access_token
+                        }
+                    });
+                }
+            })
+            .then(response => {
+                if (response && response.ok) {
+                    return response.json();
+                }
+            })
             .then(user => {
                 if (user) {
                     document.getElementById('user-info').textContent = `Olá, ${user.full_name}`;
-                    // Carregar dashboard após autenticação
                     setTimeout(() => {
                         if (typeof showSection === 'function') {
                             showSection('dashboard');

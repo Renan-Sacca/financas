@@ -54,6 +54,23 @@ def verify_token(token: str) -> Optional[str]:
     except JWTError:
         return None
 
+def refresh_token_if_needed(token: str) -> str:
+    """Verifica se o token precisa ser renovado e retorna um novo se necessário"""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        exp = payload.get("exp")
+        if exp:
+            # Se o token expira em menos de 24 horas, renova
+            time_until_exp = datetime.fromtimestamp(exp) - datetime.utcnow()
+            if time_until_exp.total_seconds() < 86400:  # 24 horas em segundos
+                email = payload.get("sub")
+                if email:
+                    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+                    return create_access_token(data={"sub": email}, expires_delta=access_token_expires)
+    except JWTError:
+        pass
+    return token
+
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), session: Session = Depends(get_session)) -> User:
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,

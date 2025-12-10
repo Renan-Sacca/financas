@@ -19,7 +19,7 @@ EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD", "your-app-password")
 # Configurações JWT
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-in-production")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 30
+ACCESS_TOKEN_EXPIRE_MINUTES = 2880  # 48 horas
 
 # URL base da aplicação
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")

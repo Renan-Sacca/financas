@@ -1,12 +1,16 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlmodel import Session, select
 from datetime import timedelta
 from app.db_utils import execute_with_retry
 from app.models import User
 from app.schemas import UserCreate, UserLogin, Token, UserResponse, PasswordResetRequest, PasswordReset, UserUpdate
-from app.auth import get_password_hash, verify_password, create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES, get_current_user
+from app.auth import get_password_hash, verify_password, create_access_token, get_current_user
+from app.config import ACCESS_TOKEN_EXPIRE_MINUTES
 from app.email_service import send_verification_email, generate_verification_token, send_password_reset_email
+
+security = HTTPBearer()
 
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
@@ -134,6 +138,12 @@ def verify_email(token: str = Query(...)):
 @router.get("/me", response_model=UserResponse)
 def get_current_user_info(current_user: User = Depends(get_current_user)):
     return current_user
+
+@router.post("/refresh-token", response_model=Token)
+def refresh_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    from app.auth import refresh_token_if_needed
+    new_token = refresh_token_if_needed(credentials.credentials)
+    return {"access_token": new_token, "token_type": "bearer"}
 
 @router.put("/me", response_model=UserResponse)
 def update_current_user(user_update: UserUpdate, current_user: User = Depends(get_current_user)):
