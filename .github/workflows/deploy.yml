@@ -1,0 +1,35 @@
+name: Deploy Automático Docker
+
+# A automação roda quando houver envio de código para main ou develop
+on:
+  push:
+    branches:
+      - main
+      - develop
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Conectar no servidor e atualizar código
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            # Verifica qual branch ativou a ação e entra na pasta correspondente
+            if [ "${{ github.ref_name }}" == "main" ]; then
+              echo "Iniciando deploy na branch MAIN..."
+              cd /root/financas
+              
+            elif [ "${{ github.ref_name }}" == "develop" ]; then
+              echo "Iniciando deploy na branch DEVELOP..."
+              cd /root/financas_dev
+            fi
+            
+            # Puxa as atualizações apenas da branch que foi modificada
+            git pull origin ${{ github.ref_name }}
+            
+            # Reconstrói as imagens e reinicia os containers do Docker em segundo plano
+            docker compose up -d --build
