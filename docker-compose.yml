@@ -22,7 +22,7 @@ services:
     labels:
       - "traefik.enable=true"
 
-      - "traefik.http.routers.api.rule=Host(`api.seudominio.com`)"
+      - "traefik.http.routers.api.rule=Host(`api.financepowder.cloud`)"
       - "traefik.http.routers.api.entrypoints=websecure"
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
 
