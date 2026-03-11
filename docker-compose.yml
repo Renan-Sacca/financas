@@ -24,6 +24,7 @@ services:
       - "traefik.http.routers.api.tls.certresolver=letsencrypt"
 
       - "traefik.http.services.api.loadbalancer.server.port=8000"
+      - "traefik.docker.network=proxy"
 
     networks:
       - proxy
