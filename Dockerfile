@@ -14,7 +14,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copiar código da aplicação
 COPY app/ ./app/
-COPY frontend/ ./frontend/
 
 # Criar diretório para o banco de dados
 RUN mkdir -p /app/data

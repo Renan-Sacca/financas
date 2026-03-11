@@ -1,0 +1,698 @@
+{
+	"info": {
+		"_postman_id": "12345678-1234-1234-1234-123456789012",
+		"name": "Sistema de Finanças - API Completa",
+		"description": "Collection completa para o Sistema de Controle de Finanças Pessoais",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{jwt_token}}",
+				"type": "string"
+			}
+		]
+	},
+	"variable": [
+		{
+			"key": "base_url",
+			"value": "http://localhost:8000",
+			"type": "string"
+		},
+		{
+			"key": "jwt_token",
+			"value": "",
+			"type": "string"
+		},
+		{
+			"key": "telegram_id",
+			"value": "123456789",
+			"type": "string"
+		},
+		{
+			"key": "user_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "bank_id",
+			"value": "1",
+			"type": "string"
+		},
+		{
+			"key": "card_id",
+			"value": "1",
+			"type": "string"
+		}
+	],
+	"item": [
+		{
+			"name": "🔐 Autenticação",
+			"item": [
+				{
+					"name": "Registrar Usuário",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"usuario@email.com\",\n  \"password\": \"senha123\",\n  \"full_name\": \"João Silva\",\n  \"telefone\": \"(11) 99999-9999\",\n  \"id_telegram\": {{telegram_id}},\n  \"username_telegram\": \"@joao\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "register"]
+						}
+					}
+				},
+				{
+					"name": "Login",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 200) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('jwt_token', response.access_token);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"usuario@email.com\",\n  \"password\": \"senha123\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/login",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "login"]
+						}
+					}
+				},
+				{
+					"name": "Obter Perfil",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "me"]
+						}
+					}
+				},
+				{
+					"name": "Atualizar Perfil",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"full_name\": \"João Silva Santos\",\n  \"telefone\": \"(11) 88888-8888\",\n  \"id_telegram\": {{telegram_id}},\n  \"username_telegram\": \"@joaosilva\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/me",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "me"]
+						}
+					}
+				},
+				{
+					"name": "Esqueceu Senha",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"email\": \"usuario@email.com\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/forgot-password",
+							"host": ["{{base_url}}"],
+							"path": ["api", "auth", "forgot-password"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🏦 Bancos",
+			"item": [
+				{
+					"name": "Listar Bancos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/banks/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "banks", ""]
+						}
+					}
+				},
+				{
+					"name": "Criar Banco",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('bank_id', response.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Nubank\",\n  \"current_balance\": 1000.0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/banks/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "banks", ""]
+						}
+					}
+				},
+				{
+					"name": "Obter Banco",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/banks/{{bank_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "banks", "{{bank_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Atualizar Banco",
+					"request": {
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Nubank Atualizado\",\n  \"current_balance\": 1500.0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/banks/{{bank_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "banks", "{{bank_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Excluir Banco",
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/banks/{{bank_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "banks", "{{bank_id}}"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "💳 Cartões",
+			"item": [
+				{
+					"name": "Listar Cartões",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/cards/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "cards", ""]
+						}
+					}
+				},
+				{
+					"name": "Criar Cartão",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"if (pm.response.code === 201) {",
+									"    const response = pm.response.json();",
+									"    pm.collectionVariables.set('card_id', response.id);",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Nubank Crédito\",\n  \"type\": \"credit\",\n  \"limit_amount\": 5000.0,\n  \"due_day\": 15\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/banks/{{bank_id}}/cards",
+							"host": ["{{base_url}}"],
+							"path": ["api", "banks", "{{bank_id}}", "cards"]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "💰 Transações",
+			"item": [
+				{
+					"name": "Listar Transações",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/transactions/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "transactions", ""]
+						}
+					}
+				},
+				{
+					"name": "Criar Transação Simples",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"card_id\": {{card_id}},\n  \"amount\": 150.50,\n  \"type\": \"expense\",\n  \"description\": \"Compras supermercado\",\n  \"date\": \"2024-01-15\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/transactions/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "transactions", ""]
+						}
+					}
+				},
+				{
+					"name": "Criar Transação Parcelada",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"card_id\": {{card_id}},\n  \"amount\": 1200.00,\n  \"type\": \"expense\",\n  \"description\": \"Notebook Dell\",\n  \"date\": \"2024-01-15\",\n  \"total_installments\": 12\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/transactions/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "transactions", ""]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "📊 Resumo",
+			"item": [
+				{
+					"name": "Resumo Financeiro",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/summary/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "summary", ""]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🤖 Bot Telegram",
+			"item": [
+				{
+					"name": "Obter Usuário por Telegram ID",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bot/user/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "user", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Listar Bancos (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bot/banks/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "banks", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Criar Banco (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Banco Inter\",\n  \"current_balance\": 500.0\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bot/banks/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "banks", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Listar Cartões (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bot/cards/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "cards", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Criar Cartão (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bank_id\": {{bank_id}},\n  \"name\": \"Inter Crédito\",\n  \"type\": \"credit\",\n  \"limit_amount\": 3000.0,\n  \"due_day\": 10\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bot/cards/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "cards", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Criar Transação Simples (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"card_id\": {{card_id}},\n  \"amount\": 50.0,\n  \"type\": \"expense\",\n  \"description\": \"Lanche via bot\",\n  \"date\": \"2024-01-15\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bot/transactions/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "transactions", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Criar Transação Parcelada (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"card_id\": {{card_id}},\n  \"amount\": 600.0,\n  \"type\": \"expense\",\n  \"description\": \"Smartphone via bot\",\n  \"date\": \"2024-01-15\",\n  \"total_installments\": 6\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bot/transactions/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "transactions", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Listar Categorias (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bot/categories/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "categories", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Criar Categoria (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Alimentação\",\n  \"color\": \"#ff5722\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/bot/categories/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "categories", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Listar Depósitos (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bot/deposits/{{telegram_id}}",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "deposits", "{{telegram_id}}"]
+						}
+					}
+				},
+				{
+					"name": "Criar Depósito (Bot)",
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "POST",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/bot/deposits/{{telegram_id}}?bank_id={{bank_id}}&amount=500.0&description=Salário&date=2025-01-15",
+							"host": ["{{base_url}}"],
+							"path": ["api", "bot", "deposits", "{{telegram_id}}"],
+							"query": [
+								{
+									"key": "bank_id",
+									"value": "{{bank_id}}"
+								},
+								{
+									"key": "amount",
+									"value": "500.0"
+								},
+								{
+									"key": "description",
+									"value": "Salário"
+								},
+								{
+									"key": "date",
+									"value": "2025-01-15"
+								}
+							]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "🏷️ Categorias",
+			"item": [
+				{
+					"name": "Listar Categorias",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/categories/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "categories", ""]
+						}
+					}
+				},
+				{
+					"name": "Criar Categoria",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Alimentação\",\n  \"color\": \"#ff6b6b\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/categories/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "categories", ""]
+						}
+					}
+				}
+			]
+		},
+		{
+			"name": "💸 Depósitos",
+			"item": [
+				{
+					"name": "Listar Depósitos",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/deposits/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "deposits", ""]
+						}
+					}
+				},
+				{
+					"name": "Criar Depósito",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"bank_id\": {{bank_id}},\n  \"amount\": 1000.0,\n  \"description\": \"Salário\",\n  \"date\": \"2024-01-01\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/deposits/",
+							"host": ["{{base_url}}"],
+							"path": ["api", "deposits", ""]
+						}
+					}
+				}
+			]
+		}
+	]
+}
