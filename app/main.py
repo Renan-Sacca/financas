@@ -1,12 +1,23 @@
 from fastapi import FastAPI, Depends, Query
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.middleware.cors import CORSMiddleware
 from sqlmodel import Session, select
 from app.database import create_db_and_tables, get_session
 from app.models import User
 from app.api import routes_banks, routes_cards, routes_transactions, routes_summary, routes_transfers, routes_deposits, routes_categories, routes_auth, routes_bot
 
 app = FastAPI(title="Finance Control API", version="1.0.0")
+
+# Configurar CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["https://financepowder.cloud","https://www.financepowder.cloud"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+    expose_headers=["*"],
+)
 
 # Criar tabelas no startup
 @app.on_event("startup")
