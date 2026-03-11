@@ -50,7 +50,7 @@ def get_monthly_expenses(
         if card_id:
             query = query.where(Transaction.card_id == card_id)
         elif bank_id:
-            query = query.join(Card).where(Card.bank_id == bank_id)
+            query = query.where(Card.bank_id == bank_id)
         
         if category_id:
             query = query.where(Transaction.category_id == category_id)
@@ -154,7 +154,7 @@ def get_category_expenses(
         )
         
         if bank_id:
-            query = query.join(Card).where(Card.bank_id == bank_id)
+            query = query.where(Card.bank_id == bank_id)
         
         if date_from:
             query = query.where(Transaction.date >= date_from)
