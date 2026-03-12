@@ -9,7 +9,7 @@ from app.models import User
 
 router = APIRouter(prefix="/api/cards", tags=["cards"])
 
-@router.get("/", response_model=List[CardResponse])
+@router.get("", response_model=List[CardResponse])
 def list_cards(bank_id: Optional[int] = Query(None), current_user: User = Depends(get_current_user)):
     def get_cards_query(session):
         cards = crud.get_cards(session, current_user.id, bank_id)
