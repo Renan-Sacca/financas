@@ -10,7 +10,7 @@ from typing import List, Optional
 
 router = APIRouter(prefix="/api/deposits", tags=["deposits"])
 
-@router.post("/", response_model=DepositResponse)
+@router.post("", response_model=DepositResponse)
 def create_deposit(deposit: DepositCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     # Verificar se o banco existe e pertence ao usuário
     bank = session.exec(select(Bank).where(Bank.id == deposit.bank_id, Bank.user_id == current_user.id)).first()
@@ -29,7 +29,7 @@ def create_deposit(deposit: DepositCreate, session: Session = Depends(get_sessio
         created_via=db_deposit.created_via
     )
 
-@router.get("/", response_model=List[DepositResponse])
+@router.get("", response_model=List[DepositResponse])
 def get_deposits(
     date_from: Optional[date] = Query(None),
     date_to: Optional[date] = Query(None),

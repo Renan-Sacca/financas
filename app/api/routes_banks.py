@@ -9,7 +9,7 @@ from app.models import User
 
 router = APIRouter(prefix="/api/banks", tags=["banks"])
 
-@router.get("/", response_model=List[BankResponse])
+@router.get("", response_model=List[BankResponse])
 def list_banks(current_user: User = Depends(get_current_user)):
     def get_banks_query(session):
         banks = crud.get_banks(session, current_user.id)
@@ -24,7 +24,7 @@ def list_banks(current_user: User = Depends(get_current_user)):
     
     return execute_with_retry(get_banks_query)
 
-@router.post("/", response_model=BankResponse, status_code=201)
+@router.post("", response_model=BankResponse, status_code=201)
 def create_bank(bank: BankCreate, current_user: User = Depends(get_current_user)):
     def create_bank_query(session):
         db_bank = crud.create_bank(session, bank, current_user.id)

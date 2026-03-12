@@ -10,7 +10,7 @@ from datetime import datetime
 
 router = APIRouter(prefix="/api/summary", tags=["summary"])
 
-@router.get("/", response_model=Summary)
+@router.get("", response_model=Summary)
 def get_summary(current_user: User = Depends(get_current_user)):
     def get_summary_query(session):
         banks = crud.get_banks(session, current_user.id)

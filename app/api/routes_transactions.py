@@ -10,7 +10,7 @@ from app.auth import get_current_user
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
-@router.post("/", response_model=TransactionResponse, status_code=201)
+@router.post("", response_model=TransactionResponse, status_code=201)
 def create_transaction(transaction: TransactionCreate, current_user: User = Depends(get_current_user)):
     def create_transaction_query(session):
         card = session.get(Card, transaction.card_id)
@@ -47,7 +47,7 @@ def create_transaction(transaction: TransactionCreate, current_user: User = Depe
     
     return execute_with_retry(create_transaction_query)
 
-@router.get("/", response_model=List[TransactionResponse])
+@router.get("", response_model=List[TransactionResponse])
 def list_transactions(
     bank_id: Optional[int] = Query(None),
     card_id: Optional[int] = Query(None),

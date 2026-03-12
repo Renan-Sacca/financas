@@ -9,11 +9,11 @@ from app.models import User
 
 router = APIRouter(prefix="/api/categories", tags=["categories"])
 
-@router.post("/", response_model=CategoryResponse, status_code=201)
+@router.post("", response_model=CategoryResponse, status_code=201)
 def create_category(category: CategoryCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     return crud.create_category(session, category, current_user.id)
 
-@router.get("/", response_model=List[CategoryResponse])
+@router.get("", response_model=List[CategoryResponse])
 def list_categories(session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
     return crud.get_categories(session, current_user.id)
 
