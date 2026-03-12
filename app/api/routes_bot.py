@@ -127,7 +127,6 @@ def create_transaction_for_telegram_user(telegram_id: int, transaction: Transact
             db_transaction = Transaction(
                 card_id=transaction.card_id,
                 amount=installment_amount,
-                type=transaction.type,
                 description=installment_description,
                 date=installment_date,
                 purchase_date=purchase_date,
@@ -135,7 +134,6 @@ def create_transaction_for_telegram_user(telegram_id: int, transaction: Transact
                 group_id=group_id,
                 installment_number=i + 1,
                 total_installments=transaction.total_installments,
-                transfer_to_bank_id=transaction.transfer_to_bank_id,
                 created_via="bot"
             )
             
@@ -171,7 +169,6 @@ def create_transaction_for_telegram_user(telegram_id: int, transaction: Transact
         db_transaction = Transaction(
             card_id=transaction.card_id,
             amount=transaction.amount,
-            type=transaction.type,
             description=transaction.description,
             date=due_date,
             purchase_date=purchase_date,
@@ -179,7 +176,6 @@ def create_transaction_for_telegram_user(telegram_id: int, transaction: Transact
             group_id=transaction.group_id,
             installment_number=transaction.installment_number,
             total_installments=transaction.total_installments,
-            transfer_to_bank_id=transaction.transfer_to_bank_id,
             created_via="bot"
         )
         
@@ -191,7 +187,6 @@ def create_transaction_for_telegram_user(telegram_id: int, transaction: Transact
             id=db_transaction.id,
             card_id=db_transaction.card_id,
             amount=db_transaction.amount,
-            type=db_transaction.type,
             description=db_transaction.description,
             date=db_transaction.date,
             purchase_date=db_transaction.purchase_date,
@@ -236,18 +231,16 @@ def get_categories_for_telegram_user(telegram_id: int, session: Session = Depend
 def get_deposits_for_telegram_user(telegram_id: int, session: Session = Depends(get_session)):
     user = get_user_by_telegram_id(telegram_id, session)
     
-    # Buscar todas as transações de depósito do usuário
+    # Buscar todos os depósitos do usuário
     deposits = session.exec(
-        select(Transaction)
-        .join(Card)
+        select(Deposit)
         .join(Bank)
-        .where(Bank.user_id == user.id, Transaction.type == "deposit")
+        .where(Bank.user_id == user.id)
     ).all()
     
     result = []
     for deposit in deposits:
-        card = session.get(Card, deposit.card_id)
-        bank = session.get(Bank, card.bank_id)
+        bank = session.get(Bank, deposit.bank_id)
         result.append({
             "id": deposit.id,
             "amount": deposit.amount,
@@ -283,29 +276,21 @@ def create_deposit_for_telegram_user(telegram_id: int, bank_id: int, amount: flo
     # Converter string de data para objeto date
     deposit_date = datetime.strptime(date, "%Y-%m-%d").date()
     
-    # Criar transação de depósito
-    db_transaction = Transaction(
-        card_id=card.id,
-        amount=amount,
-        type="deposit",
-        description=description,
-        date=deposit_date,
-        purchase_date=deposit_date,
-        is_paid=True,
-        created_via="bot"
+    # Criar registro de depósito via CRUD
+    from app.schemas import DepositCreate
+    db_deposit = crud.create_deposit(
+        session,
+        DepositCreate(
+            bank_id=bank_id,
+            amount=amount,
+            description=description,
+            date=deposit_date
+        )
     )
-    
-    session.add(db_transaction)
-    
-    # Atualizar saldo do banco
-    bank.current_balance += amount
-    
-    session.commit()
-    session.refresh(db_transaction)
     
     return {
         "message": "Depósito criado com sucesso",
-        "transaction_id": db_transaction.id,
+        "deposit_id": db_deposit.id,
         "amount": amount,
         "new_balance": bank.current_balance
     }

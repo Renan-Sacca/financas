@@ -39,11 +39,12 @@ def get_monthly_expenses(
     category_id: Optional[int] = Query(None),
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None),
+    date_from: Optional[str] = Query(None),
+    date_to: Optional[str] = Query(None),
     current_user: User = Depends(get_current_user)
 ):
     def monthly_expenses_query(session):
         query = select(Transaction).join(Card).join(Bank).where(
-            Transaction.type == "expense",
             Bank.user_id == current_user.id
         )
         
@@ -54,6 +55,12 @@ def get_monthly_expenses(
         
         if category_id:
             query = query.where(Transaction.category_id == category_id)
+        
+        if date_from:
+            query = query.where(Transaction.date >= date_from)
+        
+        if date_to:
+            query = query.where(Transaction.date <= date_to)
         
         transactions = session.exec(query).all()
         
@@ -105,7 +112,6 @@ def get_card_expenses(
 ):
     def card_expenses_query(session):
         query = select(Transaction, Card).join(Card).join(Bank).where(
-            Transaction.type == "expense",
             Bank.user_id == current_user.id
         )
         
@@ -149,7 +155,6 @@ def get_category_expenses(
         from app.models import Category
         
         query = select(Transaction, Category).join(Card).join(Bank).join(Category, Transaction.category_id == Category.id, isouter=True).where(
-            Transaction.type == "expense",
             Bank.user_id == current_user.id
         )
         
@@ -207,7 +212,6 @@ def get_credit_limits(
         for card, bank in cards_with_limits:
             transactions_query = select(Transaction).where(
                 Transaction.card_id == card.id,
-                Transaction.type == "expense",
                 Transaction.is_paid == False
             )
             

@@ -8,13 +8,8 @@ class CardType(str, Enum):
     credit = "credit"
     debit = "debit"
 
-class TransactionType(str, Enum):
-    expense = "expense"
-    payment = "payment"
-    refund = "refund"
-    deposit = "deposit"
-    transfer_out = "transfer_out"
-    transfer_in = "transfer_in"
+# TransactionType removido pois a tabela Transaction será exclusiva para cartões
+# Depósitos agora têm sua própria tabela
 
 class CreatedVia(str, Enum):
     web = "web"
@@ -69,11 +64,21 @@ class Card(SQLModel, table=True):
     bank: Bank = Relationship(back_populates="cards")
     transactions: List["Transaction"] = Relationship(back_populates="card")
 
+class Deposit(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    bank_id: int = Field(foreign_key="bank.id")
+    amount: float = Field(gt=0)
+    description: str
+    date: date
+    created_via: CreatedVia = Field(default=CreatedVia.web)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    bank: Bank = Relationship()
+
 class Transaction(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     card_id: int = Field(foreign_key="card.id")
     amount: float = Field(gt=0)
-    type: TransactionType = Field(default=TransactionType.expense)
     description: str
     date: date
     purchase_date: Optional[date] = Field(default=None)
@@ -84,8 +89,6 @@ class Transaction(SQLModel, table=True):
     total_installments: Optional[int] = Field(default=None)
     created_via: CreatedVia = Field(default=CreatedVia.web)
     created_at: datetime = Field(default_factory=datetime.now)
-    transfer_to_bank_id: Optional[int] = Field(default=None, foreign_key="bank.id")
     
     card: Card = Relationship(back_populates="transactions")
     category: Optional[Category] = Relationship(back_populates="transactions")
-    transfer_to_bank: Optional[Bank] = Relationship()

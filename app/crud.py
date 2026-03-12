@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
-from app.models import Bank, Card, Transaction, TransactionType, Category
-from app.schemas import BankCreate, BankUpdate, CardCreate, CardUpdate, TransactionCreate, TransferCreate, CategoryCreate
+from app.models import Bank, Card, Transaction, Category, Deposit
+from app.schemas import BankCreate, BankUpdate, CardCreate, CardUpdate, TransactionCreate, TransferCreate, CategoryCreate, DepositCreate
 from typing import List, Optional
 from datetime import date
 
@@ -86,8 +86,35 @@ def create_transaction(session: Session, transaction: TransactionCreate) -> Tran
     session.refresh(db_transaction)
     return db_transaction
 
+def create_deposit(session: Session, deposit: DepositCreate) -> Deposit:
+    db_deposit = Deposit(**deposit.dict())
+    session.add(db_deposit)
+    
+    # Depósitos sempre aumentam o saldo
+    update_bank_balance(session, deposit.bank_id, deposit.amount, True)
+    
+    session.commit()
+    session.refresh(db_deposit)
+    return db_deposit
+
+def get_deposits(session: Session, user_id: int, bank_id: Optional[int] = None) -> List[Deposit]:
+    query = select(Deposit).join(Bank).where(Bank.user_id == user_id)
+    if bank_id:
+        query = query.where(Deposit.bank_id == bank_id)
+    return session.exec(query).all()
+
+def delete_deposit(session: Session, deposit_id: int) -> bool:
+    db_deposit = session.get(Deposit, deposit_id)
+    if db_deposit:
+        # Reverter o saldo antes de deletar
+        update_bank_balance(session, db_deposit.bank_id, db_deposit.amount, False)
+        session.delete(db_deposit)
+        session.commit()
+        return True
+    return False
+
 def get_transactions(session: Session, bank_id: Optional[int] = None, card_id: Optional[int] = None, date_from: Optional[date] = None, date_to: Optional[date] = None, status: Optional[str] = None, user_id: Optional[int] = None, created_via: Optional[str] = None) -> List[Transaction]:
-    query = select(Transaction).join(Card).join(Bank).where(Transaction.type != 'deposit')
+    query = select(Transaction).join(Card).join(Bank)
     if user_id:
         query = query.where(Bank.user_id == user_id)
     if bank_id:
@@ -115,34 +142,36 @@ def create_transfer(session: Session, transfer: TransferCreate) -> bool:
     if not from_bank or not to_bank:
         return False
     
-    # Buscar primeiro cartão de cada banco
+    # Buscar primeiro cartão do banco de origem (para a transação de despesa)
     from_card = session.exec(select(Card).where(Card.bank_id == transfer.from_bank_id)).first()
-    to_card = session.exec(select(Card).where(Card.bank_id == transfer.to_bank_id)).first()
     
-    if not from_card or not to_card:
+    if not from_card:
         return False
     
-    # Criar transação de saída
+    # Criar transação de saída (Despesa no cartão/banco de origem)
     out_transaction = Transaction(
         card_id=from_card.id,
         amount=transfer.amount,
-        type=TransactionType.transfer_out,
         description=f"Transferência para {to_bank.name}: {transfer.description}",
         date=transfer.date,
-        transfer_to_bank_id=transfer.to_bank_id
+        is_paid=True # Transferências costumam ser imediatas
     )
     
-    # Criar transação de entrada
-    in_transaction = Transaction(
-        card_id=to_card.id,
+    # Criar entrada (Depósito no banco de destino)
+    in_deposit = Deposit(
+        bank_id=transfer.to_bank_id,
         amount=transfer.amount,
-        type=TransactionType.transfer_in,
         description=f"Transferência de {from_bank.name}: {transfer.description}",
         date=transfer.date
     )
     
     session.add(out_transaction)
-    session.add(in_transaction)
+    session.add(in_deposit)
+    
+    # Atualizar saldos
+    update_bank_balance(session, transfer.from_bank_id, transfer.amount, False)
+    update_bank_balance(session, transfer.to_bank_id, transfer.amount, True)
+    
     session.commit()
     return True
 
@@ -177,18 +206,12 @@ def toggle_transaction_payment(session: Session, transaction_id: int) -> Optiona
         # Buscar o banco através do cartão
         card = session.get(Card, transaction.card_id)
         if card:
-            # Se está mudando para pago
+            # Se está mudando para pago: Diminuir saldo (pois Transaction agora é só despesa/cartão)
             if not transaction.is_paid:
-                if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
-                    update_bank_balance(session, card.bank_id, transaction.amount, False)
-                elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
-                    update_bank_balance(session, card.bank_id, transaction.amount, True)
-            # Se está mudando para pendente
+                update_bank_balance(session, card.bank_id, transaction.amount, False)
+            # Se está mudando para pendente: Devolver saldo
             else:
-                if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
-                    update_bank_balance(session, card.bank_id, transaction.amount, True)
-                elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
-                    update_bank_balance(session, card.bank_id, transaction.amount, False)
+                update_bank_balance(session, card.bank_id, transaction.amount, True)
         
         transaction.is_paid = not transaction.is_paid
         session.commit()
@@ -204,18 +227,12 @@ def bulk_update_transaction_status(session: Session, transaction_ids: List[int],
             if transaction.is_paid != is_paid:
                 card = session.get(Card, transaction.card_id)
                 if card:
-                    # Se está mudando para pago
+                    # Se está mudando para pago: Diminuir saldo
                     if is_paid:
-                        if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
-                            update_bank_balance(session, card.bank_id, transaction.amount, False)
-                        elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
-                            update_bank_balance(session, card.bank_id, transaction.amount, True)
-                    # Se está mudando para pendente
+                        update_bank_balance(session, card.bank_id, transaction.amount, False)
+                    # Se está mudando para pendente: Devolver saldo
                     else:
-                        if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
-                            update_bank_balance(session, card.bank_id, transaction.amount, True)
-                        elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
-                            update_bank_balance(session, card.bank_id, transaction.amount, False)
+                        update_bank_balance(session, card.bank_id, transaction.amount, True)
             
             transaction.is_paid = is_paid
         session.commit()
@@ -273,7 +290,6 @@ def update_transaction_group(session: Session, request) -> int:
         new_transaction = Transaction(
             card_id=request.card_id,
             amount=installment_amount,
-            type=TransactionType.expense,
             description=installment_description,
             date=installment_date,
             purchase_date=purchase_date,
@@ -301,10 +317,8 @@ def mark_previous_transactions_as_paid(session: Session, current_date) -> int:
         # Atualizar saldo do banco
         card = session.get(Card, transaction.card_id)
         if card:
-            if transaction.type in [TransactionType.expense, TransactionType.transfer_out]:
-                update_bank_balance(session, card.bank_id, transaction.amount, False)
-            elif transaction.type in [TransactionType.payment, TransactionType.refund, TransactionType.deposit, TransactionType.transfer_in]:
-                update_bank_balance(session, card.bank_id, transaction.amount, True)
+            # Transaction agora é sempre despesa
+            update_bank_balance(session, card.bank_id, transaction.amount, False)
         
         transaction.is_paid = True
         count += 1

@@ -1,27 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session, select
 from app.database import get_session
-from app.models import Bank, Card, Transaction, TransactionType, User
-from app.crud import update_bank_balance
+from app.models import Bank, Deposit, User
+from app import crud
 from app.auth import get_current_user
-from pydantic import BaseModel
+from app.schemas import DepositCreate, DepositResponse
 from datetime import date
 from typing import List, Optional
 
 router = APIRouter(prefix="/api/deposits", tags=["deposits"])
-
-class DepositCreate(BaseModel):
-    bank_id: int
-    amount: float
-    description: str
-    date: date
-
-class DepositResponse(BaseModel):
-    id: int
-    bank_name: str
-    amount: float
-    description: str
-    date: date
 
 @router.post("/", response_model=DepositResponse)
 def create_deposit(deposit: DepositCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
@@ -30,42 +17,16 @@ def create_deposit(deposit: DepositCreate, session: Session = Depends(get_sessio
     if not bank:
         raise HTTPException(status_code=404, detail="Banco não encontrado")
     
-    # Buscar o primeiro cartão do banco (ou criar um padrão)
-    card = session.exec(select(Card).where(Card.bank_id == deposit.bank_id)).first()
-    if not card:
-        # Criar cartão padrão para depósitos
-        card = Card(
-            bank_id=deposit.bank_id,
-            name=f"{bank.name} - Depósitos",
-            type="debit"
-        )
-        session.add(card)
-        session.commit()
-        session.refresh(card)
-    
-    # Criar transação de depósito
-    transaction = Transaction(
-        card_id=card.id,
-        amount=deposit.amount,
-        type=TransactionType.deposit,
-        description=deposit.description,
-        date=deposit.date,
-        is_paid=True
-    )
-    
-    session.add(transaction)
-    session.commit()
-    session.refresh(transaction)
-    
-    # Atualizar saldo do banco
-    update_bank_balance(session, deposit.bank_id, deposit.amount, True)
+    db_deposit = crud.create_deposit(session, deposit)
     
     return DepositResponse(
-        id=transaction.id,
+        id=db_deposit.id,
+        bank_id=db_deposit.bank_id,
         bank_name=bank.name,
-        amount=transaction.amount,
-        description=transaction.description,
-        date=transaction.date
+        amount=db_deposit.amount,
+        description=db_deposit.description,
+        date=db_deposit.date,
+        created_via=db_deposit.created_via
     )
 
 @router.get("/", response_model=List[DepositResponse])
@@ -76,96 +37,44 @@ def get_deposits(
     session: Session = Depends(get_session),
     current_user: User = Depends(get_current_user)
 ):
-    query = select(Transaction, Card, Bank).select_from(Transaction).join(Card).join(Bank).where(Transaction.type == TransactionType.deposit, Bank.user_id == current_user.id)
+    query = select(Deposit).join(Bank).where(Bank.user_id == current_user.id)
     
-    if date_from:
-        query = query.where(Transaction.date >= date_from)
-    if date_to:
-        query = query.where(Transaction.date <= date_to)
     if bank_id:
-        query = query.where(Bank.id == bank_id)
+        query = query.where(Deposit.bank_id == bank_id)
+    if date_from:
+        query = query.where(Deposit.date >= date_from)
+    if date_to:
+        query = query.where(Deposit.date <= date_to)
     
     results = session.exec(query).all()
     
-    deposits = []
-    for transaction, card, bank in results:
-        deposits.append(DepositResponse(
-            id=transaction.id,
-            bank_name=bank.name,
-            amount=transaction.amount,
-            description=transaction.description,
-            date=transaction.date
+    response = []
+    for d in results:
+        bank = session.get(Bank, d.bank_id)
+        response.append(DepositResponse(
+            id=d.id,
+            bank_id=d.bank_id,
+            bank_name=bank.name if bank else "N/A",
+            amount=d.amount,
+            description=d.description,
+            date=d.date,
+            created_via=d.created_via
         ))
     
-    return sorted(deposits, key=lambda x: x.date, reverse=True)
-
-@router.put("/{deposit_id}", response_model=DepositResponse)
-def update_deposit(deposit_id: int, deposit: DepositCreate, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
-    # Verificar se o depósito existe e pertence ao usuário
-    transaction = session.exec(
-        select(Transaction).join(Card).join(Bank)
-        .where(Transaction.id == deposit_id, Transaction.type == TransactionType.deposit, Bank.user_id == current_user.id)
-    ).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Depósito não encontrado")
-    
-    # Verificar se o novo banco existe e pertence ao usuário
-    new_bank = session.exec(select(Bank).where(Bank.id == deposit.bank_id, Bank.user_id == current_user.id)).first()
-    if not new_bank:
-        raise HTTPException(status_code=404, detail="Banco não encontrado")
-    
-    # Reverter saldo do banco antigo
-    old_card = session.get(Card, transaction.card_id)
-    if old_card:
-        update_bank_balance(session, old_card.bank_id, transaction.amount, False)
-    
-    # Buscar ou criar cartão do novo banco
-    new_card = session.exec(select(Card).where(Card.bank_id == deposit.bank_id)).first()
-    if not new_card:
-        new_card = Card(
-            bank_id=deposit.bank_id,
-            name=f"{new_bank.name} - Depósitos",
-            type="debit"
-        )
-        session.add(new_card)
-        session.commit()
-        session.refresh(new_card)
-    
-    # Atualizar transação
-    transaction.card_id = new_card.id
-    transaction.amount = deposit.amount
-    transaction.description = deposit.description
-    transaction.date = deposit.date
-    
-    session.commit()
-    session.refresh(transaction)
-    
-    # Adicionar saldo ao novo banco
-    update_bank_balance(session, deposit.bank_id, deposit.amount, True)
-    
-    return DepositResponse(
-        id=transaction.id,
-        bank_name=new_bank.name,
-        amount=transaction.amount,
-        description=transaction.description,
-        date=transaction.date
-    )
+    return sorted(response, key=lambda x: x.date, reverse=True)
 
 @router.delete("/{deposit_id}")
 def delete_deposit(deposit_id: int, session: Session = Depends(get_session), current_user: User = Depends(get_current_user)):
-    # Verificar se o depósito existe e pertence ao usuário
-    transaction = session.exec(
-        select(Transaction).join(Card).join(Bank)
-        .where(Transaction.id == deposit_id, Transaction.type == TransactionType.deposit, Bank.user_id == current_user.id)
+    # Verificar se o depósito existe e pertence ao usuário (através do banco)
+    deposit = session.exec(
+        select(Deposit).join(Bank)
+        .where(Deposit.id == deposit_id, Bank.user_id == current_user.id)
     ).first()
-    if not transaction:
+    
+    if not deposit:
         raise HTTPException(status_code=404, detail="Depósito não encontrado")
     
-    # Buscar banco para reverter saldo
-    card = session.get(Card, transaction.card_id)
-    if card:
-        update_bank_balance(session, card.bank_id, transaction.amount, False)
+    if crud.delete_deposit(session, deposit_id):
+        return {"message": "Depósito excluído com sucesso"}
     
-    session.delete(transaction)
-    session.commit()
-    return {"message": "Depósito excluído com sucesso"}
+    raise HTTPException(status_code=500, detail="Erro ao excluir depósito")

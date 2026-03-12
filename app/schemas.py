@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from datetime import date
 from typing import List, Optional
-from app.models import CardType, TransactionType, CreatedVia
+from app.models import CardType, CreatedVia
 
 class UserCreate(BaseModel):
     email: EmailStr
@@ -94,10 +94,24 @@ class CategoryResponse(BaseModel):
     name: str
     color: str
 
+class DepositCreate(BaseModel):
+    bank_id: int
+    amount: float
+    description: str
+    date: date
+
+class DepositResponse(BaseModel):
+    id: int
+    bank_id: int
+    amount: float
+    description: str
+    date: date
+    created_via: CreatedVia
+    bank_name: str
+
 class TransactionCreate(BaseModel):
     card_id: int
     amount: float
-    type: TransactionType = TransactionType.expense
     description: str
     date: date
     purchase_date: Optional[date] = None
@@ -105,7 +119,6 @@ class TransactionCreate(BaseModel):
     group_id: Optional[str] = None
     installment_number: Optional[int] = None
     total_installments: Optional[int] = None
-    transfer_to_bank_id: Optional[int] = None
 
 class TransferCreate(BaseModel):
     from_bank_id: int
@@ -118,13 +131,13 @@ class TransactionResponse(BaseModel):
     id: int
     card_id: int
     amount: float
-    type: TransactionType
     description: str
     date: date
     purchase_date: Optional[date] = None
     is_paid: bool
     category_id: Optional[int] = None
     category_name: Optional[str] = None
+    category_color: Optional[str] = None
     group_id: Optional[str] = None
     installment_number: Optional[int] = None
     total_installments: Optional[int] = None
@@ -132,7 +145,6 @@ class TransactionResponse(BaseModel):
     card_name: str
     card_type: CardType
     bank_name: str
-    transfer_to_bank_name: Optional[str] = None
 
 class BankSummary(BaseModel):
     bank_id: int

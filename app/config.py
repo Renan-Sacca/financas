@@ -25,7 +25,7 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 2880  # 48 horas
 BASE_URL = os.getenv("BASE_URL", "http://localhost:8000")
 
 # Configurações de CORS
-ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:8080,http://127.0.0.1:8080").split(",")
 
 # Configurações do MySQL
 MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
