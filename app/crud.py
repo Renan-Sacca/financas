@@ -132,7 +132,6 @@ def get_transactions(session: Session, bank_id: Optional[int] = None, card_id: O
     if created_via:
         query = query.where(Transaction.created_via == created_via)
     
-    transactions = session.exec(query).all()
     return session.exec(query).all()
 
 def create_transfer(session: Session, transfer: TransferCreate) -> bool:
