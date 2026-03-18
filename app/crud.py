@@ -1,6 +1,6 @@
 from sqlmodel import Session, select
-from app.models import Bank, Card, Transaction, Category, Deposit
-from app.schemas import BankCreate, BankUpdate, CardCreate, CardUpdate, TransactionCreate, TransferCreate, CategoryCreate, DepositCreate
+from app.models import Bank, Card, Transaction, Category, Deposit, IncomeType, PaymentMethod, IncomeCategory
+from app.schemas import BankCreate, BankUpdate, CardCreate, CardUpdate, TransactionCreate, TransferCreate, CategoryCreate, DepositCreate, IncomeCategoryCreate
 from typing import List, Optional
 from datetime import date
 
@@ -86,19 +86,28 @@ def create_transaction(session: Session, transaction: TransactionCreate) -> Tran
     session.refresh(db_transaction)
     return db_transaction
 
-def create_deposit(session: Session, deposit: DepositCreate) -> Deposit:
-    db_deposit = Deposit(**deposit.dict())
+def create_deposit(session: Session, deposit: DepositCreate, user_id: int, add_to_balance: bool = True) -> Deposit:
+    db_deposit = Deposit(
+        user_id=user_id,
+        bank_id=deposit.bank_id,
+        amount=deposit.amount,
+        description=deposit.description,
+        type_id=deposit.type_id,
+        payment_method_id=deposit.payment_method_id,
+        income_category_id=deposit.income_category_id,
+        date=deposit.date,
+    )
     session.add(db_deposit)
     
-    # Depósitos sempre aumentam o saldo
-    update_bank_balance(session, deposit.bank_id, deposit.amount, True)
+    if add_to_balance:
+        update_bank_balance(session, deposit.bank_id, deposit.amount, True)
     
     session.commit()
     session.refresh(db_deposit)
     return db_deposit
 
 def get_deposits(session: Session, user_id: int, bank_id: Optional[int] = None) -> List[Deposit]:
-    query = select(Deposit).join(Bank).where(Bank.user_id == user_id)
+    query = select(Deposit).where(Deposit.user_id == user_id)
     if bank_id:
         query = query.where(Deposit.bank_id == bank_id)
     return session.exec(query).all()
@@ -107,11 +116,62 @@ def delete_deposit(session: Session, deposit_id: int) -> bool:
     db_deposit = session.get(Deposit, deposit_id)
     if db_deposit:
         # Reverter o saldo antes de deletar
-        update_bank_balance(session, db_deposit.bank_id, db_deposit.amount, False)
+        if db_deposit.bank_id:
+            update_bank_balance(session, db_deposit.bank_id, db_deposit.amount, False)
         session.delete(db_deposit)
         session.commit()
         return True
     return False
+
+# ──── INCOME TYPES ────
+def get_income_types(session: Session) -> List[IncomeType]:
+    return session.exec(select(IncomeType).order_by(IncomeType.id)).all()
+
+# ──── PAYMENT METHODS ────
+def get_payment_methods(session: Session) -> List[PaymentMethod]:
+    return session.exec(select(PaymentMethod).order_by(PaymentMethod.id)).all()
+
+# ──── INCOME CATEGORIES ────
+def create_income_category(session: Session, category: IncomeCategoryCreate, user_id: int) -> IncomeCategory:
+    db_cat = IncomeCategory(name=category.name.strip(), color=category.color, user_id=user_id)
+    session.add(db_cat)
+    session.commit()
+    session.refresh(db_cat)
+    return db_cat
+
+def get_income_categories(session: Session, user_id: int) -> List[IncomeCategory]:
+    return session.exec(select(IncomeCategory).where(IncomeCategory.user_id == user_id)).all()
+
+def update_income_category(session: Session, category_id: int, category_update: IncomeCategoryCreate, user_id: int) -> Optional[IncomeCategory]:
+    cat = session.exec(select(IncomeCategory).where(IncomeCategory.id == category_id, IncomeCategory.user_id == user_id)).first()
+    if cat:
+        cat.name = category_update.name.strip()
+        cat.color = category_update.color
+        session.commit()
+        session.refresh(cat)
+        return cat
+    return None
+
+def delete_income_category(session: Session, category_id: int, user_id: int) -> bool:
+    cat = session.exec(select(IncomeCategory).where(IncomeCategory.id == category_id, IncomeCategory.user_id == user_id)).first()
+    if cat:
+        session.delete(cat)
+        session.commit()
+        return True
+    return False
+
+def find_or_create_income_category(session: Session, name: str, user_id: int, color: Optional[str] = "#007bff") -> IncomeCategory:
+    normalized = name.strip()
+    existing = session.exec(
+        select(IncomeCategory).where(IncomeCategory.user_id == user_id, IncomeCategory.name == normalized)
+    ).first()
+    if existing:
+        return existing
+    new_cat = IncomeCategory(name=normalized, user_id=user_id, color=color)
+    session.add(new_cat)
+    session.commit()
+    session.refresh(new_cat)
+    return new_cat
 
 def get_transactions(session: Session, bank_id: Optional[int] = None, card_id: Optional[int] = None, date_from: Optional[date] = None, date_to: Optional[date] = None, status: Optional[str] = None, user_id: Optional[int] = None, created_via: Optional[str] = None) -> List[Transaction]:
     query = select(Transaction).join(Card).join(Bank)
@@ -158,10 +218,13 @@ def create_transfer(session: Session, transfer: TransferCreate) -> bool:
     
     # Criar entrada (Depósito no banco de destino)
     in_deposit = Deposit(
+        user_id=from_bank.user_id,
         bank_id=transfer.to_bank_id,
         amount=transfer.amount,
         description=f"Transferência de {from_bank.name}: {transfer.description}",
-        date=transfer.date
+        date=transfer.date,
+        type_id=1,
+        payment_method_id=1,
     )
     
     session.add(out_transaction)

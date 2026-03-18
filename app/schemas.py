@@ -94,20 +94,61 @@ class CategoryResponse(BaseModel):
     name: str
     color: str
 
+class IncomeTypeResponse(BaseModel):
+    id: int
+    name: str
+
+class PaymentMethodResponse(BaseModel):
+    id: int
+    name: str
+
+class IncomeCategoryCreate(BaseModel):
+    name: str
+    color: Optional[str] = "#007bff"
+
+class IncomeCategoryResponse(BaseModel):
+    id: int
+    user_id: int
+    name: str
+    color: Optional[str] = "#007bff"
+
 class DepositCreate(BaseModel):
     bank_id: int
     amount: float
-    description: str
+    description: Optional[str] = None
+    type_id: int
+    payment_method_id: int
+    income_category_id: Optional[int] = None
+    income_category_name: Optional[str] = None
     date: date
+    add_to_balance: bool = True
+
+class DepositUpdate(BaseModel):
+    bank_id: Optional[int] = None
+    amount: Optional[float] = None
+    description: Optional[str] = None
+    type_id: Optional[int] = None
+    payment_method_id: Optional[int] = None
+    income_category_id: Optional[int] = None
+    date: Optional[str] = None
+    adjust_balance: bool = False
 
 class DepositResponse(BaseModel):
     id: int
+    user_id: int
     bank_id: int
+    bank_name: Optional[str] = None
     amount: float
-    description: str
+    description: Optional[str] = None
+    type_id: int
+    type_name: Optional[str] = None
+    payment_method_id: int
+    payment_method_name: Optional[str] = None
+    income_category_id: Optional[int] = None
+    income_category_name: Optional[str] = None
+    income_category_color: Optional[str] = None
     date: date
-    created_via: CreatedVia
-    bank_name: str
+    source: Optional[str] = None
 
 class TransactionCreate(BaseModel):
     card_id: int

@@ -64,16 +64,41 @@ class Card(SQLModel, table=True):
     bank: Bank = Relationship(back_populates="cards")
     transactions: List["Transaction"] = Relationship(back_populates="card")
 
-class Deposit(SQLModel, table=True):
+class IncomeType(SQLModel, table=True):
+    __tablename__ = "income_type"
     id: Optional[int] = Field(default=None, primary_key=True)
-    bank_id: int = Field(foreign_key="bank.id")
-    amount: float = Field(gt=0)
-    description: str
-    date: date
-    created_via: CreatedVia = Field(default=CreatedVia.web)
+    name: str
+
+class PaymentMethod(SQLModel, table=True):
+    __tablename__ = "payment_method"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    name: str
+
+class IncomeCategory(SQLModel, table=True):
+    __tablename__ = "income_category"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    name: str
+    color: Optional[str] = Field(default="#007bff")
     created_at: datetime = Field(default_factory=datetime.now)
 
-    bank: Bank = Relationship()
+class Deposit(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    bank_id: Optional[int] = Field(default=None, foreign_key="bank.id")
+    amount: float = Field(gt=0)
+    description: Optional[str] = Field(default=None)
+    type_id: int = Field(foreign_key="income_type.id")
+    payment_method_id: int = Field(foreign_key="payment_method.id")
+    income_category_id: Optional[int] = Field(default=None, foreign_key="income_category.id")
+    date: date
+    created_at: datetime = Field(default_factory=datetime.now)
+    source: Optional[str] = Field(default="web")
+
+    bank: Optional[Bank] = Relationship()
+    income_type: IncomeType = Relationship()
+    payment_method: PaymentMethod = Relationship()
+    income_category: Optional[IncomeCategory] = Relationship()
 
 class Transaction(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)

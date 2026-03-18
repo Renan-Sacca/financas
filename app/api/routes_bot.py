@@ -284,8 +284,11 @@ def create_deposit_for_telegram_user(telegram_id: int, bank_id: int, amount: flo
             bank_id=bank_id,
             amount=amount,
             description=description,
-            date=deposit_date
-        )
+            date=deposit_date,
+            type_id=1,
+            payment_method_id=1,
+        ),
+        user_id=user.id
     )
     
     return {
