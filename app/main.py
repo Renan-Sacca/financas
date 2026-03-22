@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import create_db_and_tables
-from app.api import routes_banks, routes_cards, routes_transactions, routes_summary, routes_transfers, routes_deposits, routes_categories, routes_auth, routes_bot, routes_recurring
+from app.api import routes_banks, routes_cards, routes_transactions, routes_summary, routes_transfers, routes_deposits, routes_categories, routes_auth, routes_bot, routes_recurring, routes_chat
 from app.config import ALLOWED_ORIGINS
 
 app = FastAPI(title="Finance Control API", version="1.0.0", redirect_slashes=False)
@@ -32,6 +32,7 @@ app.include_router(routes_deposits.router)
 app.include_router(routes_categories.router)
 app.include_router(routes_bot.router)
 app.include_router(routes_recurring.router)
+app.include_router(routes_chat.router)
 
 if __name__ == "__main__":
     import uvicorn

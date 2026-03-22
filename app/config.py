@@ -38,3 +38,6 @@ MYSQL_DATABASE = os.getenv("MYSQL_DATABASE", "financas_db")
 MYSQL_CONNECT_TIMEOUT = int(os.getenv("MYSQL_CONNECT_TIMEOUT", "60"))
 MYSQL_READ_TIMEOUT = int(os.getenv("MYSQL_READ_TIMEOUT", "60"))
 MYSQL_WRITE_TIMEOUT = int(os.getenv("MYSQL_WRITE_TIMEOUT", "60"))
+
+# Configurações do Chatbot (n8n)
+N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "")
