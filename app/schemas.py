@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from datetime import date
+from datetime import date, datetime
 from typing import List, Optional
 from app.models import CardType, CreatedVia
 
@@ -202,3 +202,38 @@ class CreditLimitSummary(BaseModel):
     total_limit: float
     used_limit: float
     available_limit: float
+
+# ── Pending Statement Items ──────────────────────────────────────────────────
+class PendingItemUpdate(BaseModel):
+    descricao: Optional[str] = None
+    valor: Optional[float] = None
+    data_compra: Optional[date] = None
+    category_id: Optional[int] = None
+    status: Optional[str] = None  # pending | approved | rejected
+
+class PendingItemResponse(BaseModel):
+    id: int
+    batch_id: str
+    card_id: int
+    card_name: Optional[str] = None
+    bank_name: Optional[str] = None
+    descricao: str
+    valor: float
+    data_compra: date
+    tipo: Optional[str] = None
+    status: str
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    filename: Optional[str] = None
+    created_at: datetime
+
+class BatchSummary(BaseModel):
+    batch_id: str
+    filename: Optional[str]
+    card_name: Optional[str]
+    bank_name: Optional[str]
+    total_items: int
+    pending: int
+    approved: int
+    rejected: int
+    created_at: datetime

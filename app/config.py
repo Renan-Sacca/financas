@@ -41,3 +41,10 @@ MYSQL_WRITE_TIMEOUT = int(os.getenv("MYSQL_WRITE_TIMEOUT", "60"))
 
 # Configurações do Chatbot (n8n)
 N8N_WEBHOOK_URL = os.getenv("N8N_WEBHOOK_URL", "")
+
+# Configurações do Redis
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
+REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
+REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+CHAT_HISTORY_TTL_DAYS = int(os.getenv("CHAT_HISTORY_TTL_DAYS", "7"))

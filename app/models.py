@@ -100,6 +100,25 @@ class Deposit(SQLModel, table=True):
     payment_method: PaymentMethod = Relationship()
     income_category: Optional[IncomeCategory] = Relationship()
 
+class PendingStatementItem(SQLModel, table=True):
+    __tablename__ = "pending_statement_item"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    batch_id: str = Field(index=True)          # UUID do lote (um por upload)
+    user_id: int = Field(foreign_key="user.id")
+    card_id: int = Field(foreign_key="card.id")
+    descricao: str
+    valor: float
+    data_compra: date
+    tipo: Optional[str] = Field(default="outros")
+    status: str = Field(default="pending")     # pending | approved | rejected
+    category_id: Optional[int] = Field(default=None, foreign_key="category.id")
+    filename: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    card: Optional["Card"] = Relationship()
+    category: Optional["Category"] = Relationship()
+
+
 class Transaction(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     card_id: int = Field(foreign_key="card.id")

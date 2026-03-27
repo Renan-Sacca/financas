@@ -6,6 +6,7 @@ services:
 
     volumes:
       - ./app:/app/app
+      - ./extrator:/app/extrator
       - ./.env:/app/.env
 
     env_file:
