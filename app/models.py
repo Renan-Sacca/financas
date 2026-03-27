@@ -113,6 +113,8 @@ class PendingStatementItem(SQLModel, table=True):
     status: str = Field(default="pending")     # pending | approved | rejected
     category_id: Optional[int] = Field(default=None, foreign_key="category.id")
     filename: Optional[str] = Field(default=None)
+    installment_number: Optional[int] = Field(default=None)   # parcela atual (ex: 3)
+    total_installments: Optional[int] = Field(default=None)   # total de parcelas (ex: 12)
     created_at: datetime = Field(default_factory=datetime.now)
 
     card: Optional["Card"] = Relationship()

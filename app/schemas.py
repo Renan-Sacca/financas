@@ -210,6 +210,8 @@ class PendingItemUpdate(BaseModel):
     data_compra: Optional[date] = None
     category_id: Optional[int] = None
     status: Optional[str] = None  # pending | approved | rejected
+    installment_number: Optional[int] = None
+    total_installments: Optional[int] = None
 
 class PendingItemResponse(BaseModel):
     id: int
@@ -225,6 +227,8 @@ class PendingItemResponse(BaseModel):
     category_id: Optional[int] = None
     category_name: Optional[str] = None
     filename: Optional[str] = None
+    installment_number: Optional[int] = None
+    total_installments: Optional[int] = None
     created_at: datetime
 
 class BatchSummary(BaseModel):

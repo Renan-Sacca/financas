@@ -30,6 +30,8 @@ def _build_response(db: Session, item: PendingStatementItem) -> PendingItemRespo
         category_id=item.category_id,
         category_name=cat.name if cat else None,
         filename=item.filename,
+        installment_number=item.installment_number,
+        total_installments=item.total_installments,
         created_at=item.created_at,
     )
 
@@ -132,6 +134,10 @@ def update_item(
         item.data_compra = data.data_compra
     if data.category_id is not None:
         item.category_id = data.category_id
+    if data.installment_number is not None:
+        item.installment_number = data.installment_number
+    if data.total_installments is not None:
+        item.total_installments = data.total_installments
     if data.status is not None:
         if data.status not in ("pending", "approved", "rejected"):
             raise HTTPException(status_code=400, detail="Status inválido")
@@ -186,32 +192,78 @@ def confirm_batch(
         card = db.get(Card, item.card_id)
         due_day = (card.due_day or 1) if card else 1
 
-        purchase = item.data_compra
-        m, y = purchase.month, purchase.year
-        if purchase.day > due_day:
-            m += 1
-            if m > 12:
-                m = 1
-                y += 1
-        try:
-            due_date = date(y, m, due_day)
-        except ValueError:
-            import calendar
-            due_date = date(y, m, calendar.monthrange(y, m)[1])
+        # Determina se é parcelado
+        total = item.total_installments or 1
+        current = item.installment_number or 1
+        group_id = str(uuid.uuid4()) if total > 1 else None
 
-        db.add(Transaction(
-            card_id=item.card_id,
-            amount=item.valor,
-            description=item.descricao,
-            date=due_date,
-            purchase_date=item.data_compra,
-            category_id=item.category_id,
-            created_via=CreatedVia.bot,
-        ))
-        # Marca como "confirmed" para não ser processado novamente
+        # Calcula a data de vencimento da parcela atual
+        def calc_due_date(purchase: date, offset_months: int = 0) -> date:
+            import calendar
+            m = purchase.month + offset_months
+            y = purchase.year
+            while m > 12:
+                m -= 12
+                y += 1
+            while m < 1:
+                m += 12
+                y -= 1
+            # Se a compra foi depois do dia de vencimento, cai no mês seguinte
+            if purchase.day > due_day and offset_months == 0:
+                m += 1
+                if m > 12:
+                    m = 1
+                    y += 1
+            last_day = calendar.monthrange(y, m)[1]
+            return date(y, m, min(due_day, last_day))
+
+        # Parcela base: vencimento da parcela "current"
+        # offset = 0 para a parcela atual, -1 para anterior, +1 para próxima
+        base_due = calc_due_date(item.data_compra)
+
+        # Gera todas as parcelas (anteriores + atual + futuras)
+        for i in range(1, total + 1):
+            offset = i - current  # negativo = anterior, 0 = atual, positivo = futura
+            import calendar
+            m = base_due.month + offset
+            y = base_due.year
+            while m > 12:
+                m -= 12
+                y += 1
+            while m < 1:
+                m += 12
+                y -= 1
+            last_day = calendar.monthrange(y, m)[1]
+            due = date(y, m, min(due_day, last_day))
+
+            # Data de compra estimada para parcelas geradas (mesmo dia, mês ajustado)
+            pm = item.data_compra.month + offset
+            py = item.data_compra.year
+            while pm > 12:
+                pm -= 12
+                py += 1
+            while pm < 1:
+                pm += 12
+                py += 1
+            last_pd = calendar.monthrange(py, pm)[1]
+            purchase_d = date(py, pm, min(item.data_compra.day, last_pd))
+
+            db.add(Transaction(
+                card_id=item.card_id,
+                amount=item.valor,
+                description=item.descricao if total == 1 else f"{item.descricao} ({i}/{total})",
+                date=due,
+                purchase_date=purchase_d,
+                category_id=item.category_id,
+                group_id=group_id,
+                installment_number=i,
+                total_installments=total,
+                created_via=CreatedVia.bot,
+            ))
+            created += 1
+
         item.status = "confirmed"
         db.add(item)
-        created += 1
 
     db.commit()
     return {"message": f"{created} transação(ões) criada(s) com sucesso", "created": created}
