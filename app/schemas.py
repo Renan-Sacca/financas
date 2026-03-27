@@ -241,3 +241,39 @@ class BatchSummary(BaseModel):
     approved: int
     rejected: int
     created_at: datetime
+
+# ── Pending Bank Items (extrato bancário) ────────────────────────────────────
+class PendingBankItemUpdate(BaseModel):
+    descricao: Optional[str] = None
+    valor: Optional[float] = None
+    data: Optional[date] = None
+    bank_id: Optional[int] = None
+    category_id: Optional[int] = None
+    status: Optional[str] = None
+
+class PendingBankItemResponse(BaseModel):
+    id: int
+    batch_id: str
+    bank_id: Optional[int] = None
+    bank_name: Optional[str] = None
+    descricao: str
+    valor: float
+    data: date
+    tipo: Optional[str] = None
+    status: str
+    category_id: Optional[int] = None
+    category_name: Optional[str] = None
+    filename: Optional[str] = None
+    created_at: datetime
+
+class BankBatchSummary(BaseModel):
+    batch_id: str
+    filename: Optional[str]
+    bank_id: Optional[int]
+    bank_name: Optional[str]
+    total_items: int
+    pending: int
+    approved: int
+    rejected: int
+    confirmed: int
+    created_at: datetime

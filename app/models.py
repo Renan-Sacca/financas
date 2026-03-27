@@ -86,7 +86,7 @@ class Deposit(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id")
     bank_id: Optional[int] = Field(default=None, foreign_key="bank.id")
-    amount: float = Field(gt=0)
+    amount: float  # positivo = entrada, negativo = saída
     description: Optional[str] = Field(default=None)
     type_id: int = Field(foreign_key="income_type.id")
     payment_method_id: int = Field(foreign_key="payment_method.id")
@@ -99,6 +99,25 @@ class Deposit(SQLModel, table=True):
     income_type: IncomeType = Relationship()
     payment_method: PaymentMethod = Relationship()
     income_category: Optional[IncomeCategory] = Relationship()
+
+class PendingBankItem(SQLModel, table=True):
+    __tablename__ = "pending_bank_item"
+    id: Optional[int] = Field(default=None, primary_key=True)
+    batch_id: str = Field(index=True)
+    user_id: int = Field(foreign_key="user.id")
+    bank_id: Optional[int] = Field(default=None, foreign_key="bank.id")
+    descricao: str
+    valor: float
+    data: date
+    tipo: Optional[str] = Field(default="outros")
+    status: str = Field(default="pending")     # pending | approved | rejected | confirmed
+    category_id: Optional[int] = Field(default=None, foreign_key="income_category.id")
+    filename: Optional[str] = Field(default=None)
+    created_at: datetime = Field(default_factory=datetime.now)
+
+    bank: Optional["Bank"] = Relationship()
+    category: Optional["IncomeCategory"] = Relationship()
+
 
 class PendingStatementItem(SQLModel, table=True):
     __tablename__ = "pending_statement_item"

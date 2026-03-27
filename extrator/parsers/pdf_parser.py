@@ -366,7 +366,7 @@ def _montar_transacao(valor: float, desc: str, data: str) -> dict | None:
     tipo = detectar_tipo(desc, valor)
 
     t = {
-        "valor": round(abs(valor), 2),
+        "valor": round(valor, 2),
         "data": data,
         "descricao": desc,
         "tipo": tipo,

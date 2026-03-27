@@ -574,9 +574,14 @@ async def chat_statement_card(
 async def chat_statement_bank(
     file: UploadFile = File(...),
     session_id: str = Form(...),
-    message: str = Form(default=""),
+    bank_id: Optional[int] = Form(default=None),
+    db: Session = Depends(get_session),
     current_user: User = Depends(get_current_user),
 ):
+    import uuid as uuid_mod
+    from datetime import date as date_type
+    from app.models import PendingBankItem
+
     filename = (file.filename or "").lower()
     ext = next((e for e in ALLOWED_EXTENSIONS if filename.endswith(e)), None)
     if not ext:
@@ -595,9 +600,53 @@ async def chat_statement_bank(
 
     if not transacoes:
         reply = "⚠️ Nenhuma transação encontrada no arquivo."
-    else:
-        reply = f"🏛️ *Extrato Banco — {len(transacoes)} transação(ões) encontrada(s):*\n\n"
-        reply += json.dumps(transacoes, ensure_ascii=False, indent=2)
+        append_to_history(session_id, "user", f"[EXTRATO BANCO] {file.filename}")
+        append_to_history(session_id, "bot", reply)
+        return ChatResponse(reply=reply)
+
+    # Validar banco se informado
+    bank = None
+    if bank_id:
+        bank = db.exec(select(Bank).where(Bank.id == bank_id, Bank.user_id == current_user.id)).first()
+        if not bank:
+            raise HTTPException(status_code=404, detail="Banco não encontrado")
+
+    # Salvar na tabela provisória
+    batch_id = str(uuid_mod.uuid4())
+    for t in transacoes:
+        raw_date = t.get("data", "")
+        try:
+            if raw_date and "/" in raw_date:
+                parts = raw_date.split("/")
+                data = date_type(int(parts[2]), int(parts[1]), int(parts[0]))
+            elif raw_date:
+                data = date_type.fromisoformat(raw_date)
+            else:
+                data = date_type.today()
+        except Exception:
+            data = date_type.today()
+
+        item = PendingBankItem(
+            batch_id=batch_id,
+            user_id=current_user.id,
+            bank_id=bank_id,
+            descricao=t.get("descricao", "Sem descrição")[:500],
+            valor=float(t.get("valor", 0)),
+            data=data,
+            tipo=t.get("tipo", "outros"),
+            filename=file.filename,
+        )
+        db.add(item)
+    db.commit()
+
+    base_url = "https://financepowder.cloud"
+    link = f"{base_url}/pending-bank/{batch_id}"
+    bank_info = f" do banco *{bank.name}*" if bank else ""
+    reply = (
+        f"✅ *{len(transacoes)} lançamento(s)*{bank_info} salvos para revisão!\n\n"
+        f"Acesse o link abaixo para revisar e confirmar antes de salvar:\n"
+        f"🔗 {link}"
+    )
 
     append_to_history(session_id, "user", f"[EXTRATO BANCO] {file.filename}")
     append_to_history(session_id, "bot", reply)

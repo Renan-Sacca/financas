@@ -31,14 +31,24 @@ def update_bank(session: Session, bank_id: int, bank_update: BankUpdate, user_id
 def delete_bank(session: Session, bank_id: int, user_id: int) -> bool:
     bank = session.exec(select(Bank).where(Bank.id == bank_id, Bank.user_id == user_id)).first()
     if bank:
-        # Excluir todas as transações dos cartões deste banco
-        cards = session.exec(select(Card).where(Card.bank_id == bank_id)).all()
-        for card in cards:
-            transactions = session.exec(select(Transaction).where(Transaction.card_id == card.id)).all()
-            for transaction in transactions:
-                session.delete(transaction)
-            session.delete(card)
-        
+        from app.models import PendingStatementItem, PendingBankItem, Deposit
+        from app.api.routes_recurring import RecurringPurchase
+        with session.no_autoflush:
+            # Dependentes diretos do banco
+            for d in session.exec(select(Deposit).where(Deposit.bank_id == bank_id)).all():
+                session.delete(d)
+            for pb in session.exec(select(PendingBankItem).where(PendingBankItem.bank_id == bank_id)).all():
+                session.delete(pb)
+            # Dependentes dos cartões do banco
+            cards = session.exec(select(Card).where(Card.bank_id == bank_id)).all()
+            for card in cards:
+                for p in session.exec(select(PendingStatementItem).where(PendingStatementItem.card_id == card.id)).all():
+                    session.delete(p)
+                for r in session.exec(select(RecurringPurchase).where(RecurringPurchase.card_id == card.id)).all():
+                    session.delete(r)
+                for t in session.exec(select(Transaction).where(Transaction.card_id == card.id)).all():
+                    session.delete(t)
+                session.delete(card)
         session.delete(bank)
         session.commit()
         return True

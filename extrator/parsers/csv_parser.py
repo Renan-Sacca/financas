@@ -45,7 +45,7 @@ def _mapear_linha(row: dict, filepath: str) -> dict | None:
     tipo = detectar_tipo(raw_desc, valor)
 
     t = {
-        "valor": round(abs(valor), 2),
+        "valor": round(valor, 2),
         "data": data,
         "descricao": raw_desc,
         "tipo": tipo,
