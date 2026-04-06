@@ -260,8 +260,8 @@ class CardActionRequest(BaseModel):
     card_id: Optional[int] = None
     name: Optional[str] = None
     card_type: Optional[str] = None  # "credit" | "debit"
-    limit_amount: Optional[float] = None
-    due_day: Optional[int] = None
+    limit_amount: Optional[str] = None
+    due_day: Optional[str] = None
 
 
 @router.post("/card", response_model=ChatResponse)
@@ -280,24 +280,54 @@ async def chat_card(
             raise HTTPException(status_code=404, detail="Banco não encontrado")
         from app.schemas import CardCreate
         from app.models import CardType
+        
+        parsed_due_day = None
+        if payload.due_day and str(payload.due_day).strip():
+            try:
+                parsed_due_day = int(str(payload.due_day).strip())
+            except ValueError:
+                pass
+                
+        parsed_limit = None
+        if payload.limit_amount and str(payload.limit_amount).strip():
+            try:
+                parsed_limit = float(str(payload.limit_amount).strip())
+            except ValueError:
+                pass
+
         ct = CardType.credit if payload.card_type == "credit" else CardType.debit
         card = crud.create_card(db, payload.bank_id, CardCreate(
             name=payload.name, type=ct,
-            limit_amount=payload.limit_amount, due_day=payload.due_day
+            limit_amount=parsed_limit, due_day=parsed_due_day
         ))
         reply = f"✅ Cartão *{card.name}* ({payload.card_type}) criado no banco *{bank.name}*."
-        if payload.limit_amount:
-            reply += f" Limite: R$ {payload.limit_amount:.2f}."
+        if parsed_limit:
+            reply += f" Limite: R$ {parsed_limit:.2f}."
 
     elif payload.action == "edit":
         if not payload.card_id:
             raise HTTPException(status_code=400, detail="card_id é obrigatório")
         from app.schemas import CardUpdate
         from app.models import CardType
+        
+        parsed_due_day = None
+        if payload.due_day and str(payload.due_day).strip():
+            try:
+                parsed_due_day = int(str(payload.due_day).strip())
+            except ValueError:
+                pass
+                
+        parsed_limit = None
+        if payload.limit_amount and str(payload.limit_amount).strip():
+            try:
+                parsed_limit = float(str(payload.limit_amount).strip())
+            except ValueError:
+                pass
+
         update = CardUpdate(
             name=payload.name,
-            limit_amount=payload.limit_amount,
-            due_day=payload.due_day,
+            limit_amount=parsed_limit,
+            due_day=parsed_due_day,
         )
         if payload.card_type:
             update.type = CardType.credit if payload.card_type == "credit" else CardType.debit
@@ -357,7 +387,7 @@ class TransactionActionRequest(BaseModel):
     card_id: int
     amount: float
     description: str
-    date: str  # YYYY-MM-DD
+    date: Optional[str] = None
     category_id: Optional[int] = None
     total_installments: Optional[int] = None
 
@@ -377,7 +407,17 @@ async def chat_transaction(
     if not card:
         raise HTTPException(status_code=404, detail="Cartão não encontrado")
 
-    purchase_date = date_type.fromisoformat(payload.date)
+    try:
+        if payload.date and "/" in payload.date:
+            parts = payload.date.split("/")
+            purchase_date = date_type(int(parts[2]), int(parts[1]), int(parts[0]))
+        elif payload.date:
+            purchase_date = date_type.fromisoformat(payload.date)
+        else:
+            purchase_date = date_type.today()
+    except Exception:
+        purchase_date = date_type.today()
+
     due_day = card.due_day or 1
 
     def calc_due(purchase: date_type, due_d: int, offset_months: int = 0) -> date_type:
@@ -441,7 +481,7 @@ class DepositActionRequest(BaseModel):
     bank_id: int
     amount: float
     description: Optional[str] = None
-    date: str  # YYYY-MM-DD
+    date: Optional[str] = None
     type_id: int = 1
     payment_method_id: int = 1
     add_to_balance: bool = True
@@ -460,6 +500,17 @@ async def chat_deposit(
     if not bank:
         raise HTTPException(status_code=404, detail="Banco não encontrado")
 
+    try:
+        if payload.date and "/" in payload.date:
+            parts = payload.date.split("/")
+            deposit_date = date_type(int(parts[2]), int(parts[1]), int(parts[0]))
+        elif payload.date:
+            deposit_date = date_type.fromisoformat(payload.date)
+        else:
+            deposit_date = date_type.today()
+    except Exception:
+        deposit_date = date_type.today()
+
     dep = crud.create_deposit(
         db,
         DepositCreate(
@@ -468,7 +519,7 @@ async def chat_deposit(
             description=payload.description,
             type_id=payload.type_id,
             payment_method_id=payload.payment_method_id,
-            date=date_type.fromisoformat(payload.date),
+            date=deposit_date,
             add_to_balance=payload.add_to_balance,
         ),
         current_user.id,
@@ -658,9 +709,66 @@ async def chat_statement_bank(
 async def send_chat_message(
     payload: ChatMessage,
     current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_session),
 ):
     """Bloco 7 — mensagem livre de compras, interpretada pelo n8n."""
-    reply = await _call_n8n(payload.message, payload.session_id, {"block": "free_purchase"})
+    if not N8N_WEBHOOK_URL:
+        raise HTTPException(status_code=503, detail="Chatbot n8n não configurado")
+
+    n8n_payload = {"message": payload.message, "session_id": payload.session_id, "block": "free_purchase"}
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(N8N_WEBHOOK_URL, json=n8n_payload)
+            resp.raise_for_status()
+            data = resp.json()
+    except Exception:
+        reply = "Desculpe, erro ao comunicar com o assistente n8n."
+        append_to_history(payload.session_id, "user", payload.message)
+        append_to_history(payload.session_id, "bot", reply)
+        return ChatResponse(reply=reply)
+
+    reply_str = _parse_n8n_response(data)
+    
+    # Verifica se a resposta contém os dados do JSON para gasto pendente
+    raw_dict = None
+    if isinstance(data, dict) and "valor" in data and "descricao" in data:
+        raw_dict = data
+    elif isinstance(data, list) and len(data) > 0 and isinstance(data[0], dict) and "valor" in data[0] and "descricao" in data[0]:
+        raw_dict = data[0]
+
+    if raw_dict:
+        import uuid as uuid_mod
+        from datetime import date as date_type
+        from app.models import PendingStatementItem, Card, Bank
+        from sqlmodel import select
+        
+        # Pega o primeiro cartão que achar do usuário para atrelar (necessário no DB)
+        card = db.exec(select(Card).join(Bank).where(Bank.user_id == current_user.id)).first()
+        
+        if not card:
+            reply_str = "⚠️ Você precisa ter um cartão cadastrado para salvar gastos pendentes recebidos do assistente."
+        else:
+            batch_id = str(uuid_mod.uuid4())
+            descricao = raw_dict.get("descricao", "Nova compra via Assistente")
+            valor = float(raw_dict.get("valor", 0))
+            
+            item = PendingStatementItem(
+                batch_id=batch_id,
+                user_id=current_user.id,
+                card_id=card.id,
+                descricao=descricao[:500],
+                valor=valor,
+                data_compra=date_type.today(),
+                tipo="outros",
+                filename="Mensagem do Chatbot"
+            )
+            db.add(item)
+            db.commit()
+            
+            base_url = "https://financepowder.cloud"
+            link = f"{base_url}/pending/{batch_id}"
+            reply_str = f"✅ Gasto pendente de R$ {valor:.2f} gerado para *{descricao}* no cartão *{card.name}*!\n\n🔗 Para revisar e classificar, acesse:\n{link}"
+
     append_to_history(payload.session_id, "user", payload.message)
-    append_to_history(payload.session_id, "bot", reply)
-    return ChatResponse(reply=reply or "Desculpe, não consegui processar sua mensagem.")
+    append_to_history(payload.session_id, "bot", reply_str)
+    return ChatResponse(reply=reply_str)

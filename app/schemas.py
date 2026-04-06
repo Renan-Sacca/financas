@@ -208,6 +208,7 @@ class PendingItemUpdate(BaseModel):
     descricao: Optional[str] = None
     valor: Optional[float] = None
     data_compra: Optional[date] = None
+    card_id: Optional[int] = None
     category_id: Optional[int] = None
     status: Optional[str] = None  # pending | approved | rejected
     installment_number: Optional[int] = None

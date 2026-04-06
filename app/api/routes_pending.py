@@ -132,6 +132,8 @@ def update_item(
         item.valor = data.valor
     if data.data_compra is not None:
         item.data_compra = data.data_compra
+    if data.card_id is not None:
+        item.card_id = data.card_id
     if data.category_id is not None:
         item.category_id = data.category_id
     if data.installment_number is not None:
